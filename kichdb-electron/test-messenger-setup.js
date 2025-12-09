@@ -1,6 +1,4 @@
 
-const fetch = require('node-fetch');
-
 const API_URL = 'http://127.0.0.1:3030/api';
 const PROJECT_ID = 'ebd916a5-ec15-42c4-ab7d-4bea49c74883'; // из database.json
 const MACHINE_ID = 'c8505766-3ec7-4830-94dc-ed2c8d01f0c6'; // из database.json
