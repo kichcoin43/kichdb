@@ -1,3 +1,4 @@
+
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "version": 2,
@@ -5,7 +6,7 @@
   "outputDirectory": "kichdb-electron/dist/renderer",
   "functions": {
     "server/index.js": {
-      "runtime": "@vercel/node@3"
+      "runtime": "nodejs20.x"
     }
   },
   "rewrites": [
