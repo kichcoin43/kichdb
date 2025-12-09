@@ -43,9 +43,7 @@ export default function DataBrowser() {
   const loadTables = async () => {
     try {
       setLoading(true)
-      const response = await fetch(apiUrl(`/admin/projects/${projectId}/tables`), {
-        headers: { 'x-machine-id': 'c8505766-3ec7-4830-94dc-ed2c8d01f0c6' }
-      })
+      const response = await fetch(apiUrl(`/admin/projects/${projectId}/tables`))
       const data: TableData[] = await response.json()
       setTables(data)
       if (data.length > 0) {
