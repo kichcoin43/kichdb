@@ -72,6 +72,12 @@ interface Database {
 
 // Используем постоянную папку для данных приложения
 const DB_PATH = path.join(app.getPath('userData'), 'database.json');
+const STORAGE_PATH = path.join(app.getPath('userData'), 'storage');
+
+// Создаем папку storage если её нет
+if (!fs.existsSync(STORAGE_PATH)) {
+  fs.mkdirSync(STORAGE_PATH, { recursive: true });
+}
 
 function loadDatabase(): Database {
   try {
