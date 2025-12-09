@@ -129,6 +129,7 @@ app.delete('/api/admin/projects/:id', (req, res) => {
 
 app.get('/api/admin/projects/:projectId/tables', (req, res) => {
   const { projectId } = req.params;
+  db = loadDatabase();
   const project = db.projects.find(p => p.id === projectId);
   if (!project) {
     return res.status(404).json({ error: 'Проект не найден' });
@@ -195,6 +196,7 @@ app.post('/api/admin/projects/:projectId/tables/:tableId/columns', (req, res) =>
 
 app.get('/api/projects/:projectId/:tableName', (req, res) => {
   const { projectId, tableName } = req.params;
+  db = loadDatabase();
   const table = db.tables.find(t => t.projectId === projectId && t.name === tableName);
   if (!table) {
     return res.status(404).json({ error: 'Таблица не найдена' });
@@ -204,6 +206,7 @@ app.get('/api/projects/:projectId/:tableName', (req, res) => {
 
 app.post('/api/projects/:projectId/:tableName', (req, res) => {
   const { projectId, tableName } = req.params;
+  db = loadDatabase();
   const table = db.tables.find(t => t.projectId === projectId && t.name === tableName);
   if (!table) {
     return res.status(404).json({ error: 'Таблица не найдена' });
@@ -231,6 +234,7 @@ app.put('/api/projects/:projectId/:tableName/:rowId', (req, res) => {
 
 app.delete('/api/projects/:projectId/:tableName/:rowId', (req, res) => {
   const { projectId, tableName, rowId } = req.params;
+  db = loadDatabase();
   const table = db.tables.find(t => t.projectId === projectId && t.name === tableName);
   if (!table) {
     return res.status(404).json({ error: 'Таблица не найдена' });

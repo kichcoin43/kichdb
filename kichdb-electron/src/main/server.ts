@@ -199,12 +199,12 @@ export async function startServer(): Promise<string> {
   // Tables
   app.get('/api/admin/projects/:projectId/tables', (req, res) => {
     const { projectId } = req.params;
+    // Перезагружаем БД перед каждым запросом
+    db = loadDatabase();
     const project = db.projects.find(p => p.id === projectId);
     if (!project) {
       return res.status(404).json({ error: 'Проект не найден' });
     }
-    // Перезагружаем БД чтобы получить актуальные данные
-    db = loadDatabase();
     const tables = db.tables.filter(t => t.projectId === projectId);
     res.json(tables);
   });
@@ -268,6 +268,7 @@ export async function startServer(): Promise<string> {
   // Table data operations (REST API for data)
   app.get('/api/projects/:projectId/:tableName', (req, res) => {
     const { projectId, tableName } = req.params;
+    db = loadDatabase();
     const table = db.tables.find(t => t.projectId === projectId && t.name === tableName);
     if (!table) {
       return res.status(404).json({ error: 'Таблица не найдена' });
@@ -277,6 +278,7 @@ export async function startServer(): Promise<string> {
 
   app.post('/api/projects/:projectId/:tableName', (req, res) => {
     const { projectId, tableName } = req.params;
+    db = loadDatabase();
     const table = db.tables.find(t => t.projectId === projectId && t.name === tableName);
     if (!table) {
       return res.status(404).json({ error: 'Таблица не найдена' });
@@ -304,6 +306,7 @@ export async function startServer(): Promise<string> {
 
   app.delete('/api/projects/:projectId/:tableName/:rowId', (req, res) => {
     const { projectId, tableName, rowId } = req.params;
+    db = loadDatabase();
     const table = db.tables.find(t => t.projectId === projectId && t.name === tableName);
     if (!table) {
       return res.status(404).json({ error: 'Таблица не найдена' });
