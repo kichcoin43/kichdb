@@ -203,6 +203,8 @@ export async function startServer(): Promise<string> {
     if (!project) {
       return res.status(404).json({ error: 'Проект не найден' });
     }
+    // Перезагружаем БД чтобы получить актуальные данные
+    db = loadDatabase();
     const tables = db.tables.filter(t => t.projectId === projectId);
     res.json(tables);
   });

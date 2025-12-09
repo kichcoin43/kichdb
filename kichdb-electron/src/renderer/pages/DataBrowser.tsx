@@ -43,11 +43,14 @@ export default function DataBrowser() {
   const loadTables = async () => {
     try {
       setLoading(true)
-      const response = await fetch(apiUrl(`/admin/projects/${projectId}/tables`))
+      const response = await fetch(apiUrl(`/admin/projects/${projectId}/tables`), {
+        headers: { 'x-machine-id': 'c8505766-3ec7-4830-94dc-ed2c8d01f0c6' }
+      })
       const data: TableData[] = await response.json()
       setTables(data)
       if (data.length > 0) {
-        loadTableData(data[0])
+        setSelectedTable(data[0])
+        setRows(data[0].rows || [])
       }
     } catch (error) {
       console.error('Error loading tables:', error)
@@ -57,24 +60,8 @@ export default function DataBrowser() {
   }
 
   const loadTableData = async (table: TableData) => {
-    if (!projectId || !apiKey) return
-
-    try {
-      setLoading(true)
-      const response = await fetch(
-        apiUrl(`/projects/${projectId}/${table.id}?select=*`),
-        {
-          headers: { apikey: apiKey },
-        }
-      )
-      const data = await response.json()
-      setSelectedTable(table)
-      setRows(data.data || [])
-    } catch (error) {
-      console.error('Error loading table data:', error)
-    } finally {
-      setLoading(false)
-    }
+    setSelectedTable(table)
+    setRows(table.rows || [])
   }
 
   const addRow = () => {
