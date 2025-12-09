@@ -15,6 +15,7 @@ ignorePorts = false
 
 [agent]
 expertMode = true
+integrations = ["javascript_database:1.0.0"]
 
 [workflows]
 runButton = "Project"
@@ -32,13 +33,13 @@ args = "KICH DB"
 name = "KICH DB"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd kichdb-electron && npm run dev:web"
-waitForPort = 5000
-
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "node server/index.js & cd kichdb-electron && npm run dev:renderer"
+waitForPort = 5000
 
 [[ports]]
 localPort = 3030
@@ -46,4 +47,4 @@ externalPort = 3000
 
 [[ports]]
 localPort = 5000
-externalPort = 80
+externalPort = 5000

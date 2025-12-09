@@ -1,0 +1,47 @@
+{
+  "name": "kichdb",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "server/index.js",
+  "dependencies": {
+    "@types/pg": "^8.15.6",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "drizzle-kit": "^0.31.8",
+    "drizzle-orm": "^0.45.0",
+    "express": "^4.21.0",
+    "pg": "^8.16.3",
+    "uuid": "^10.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.21",
+    "@types/node": "^22.0.0",
+    "@types/uuid": "^10.0.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "autoprefixer": "^10.4.19",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.436.0",
+    "postcss": "^8.4.40",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.26.1",
+    "tailwind-merge": "^2.4.0",
+    "tailwindcss": "^3.4.7",
+    "tailwindcss-animate": "^1.0.7",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0"
+  },
+  "scripts": {
+    "dev": "node server/index.js",
+    "dev:full": "node server/index.js & cd kichdb-electron && vite",
+    "build": "cd kichdb-electron && npm run build:renderer",
+    "db:push": "drizzle-kit push",
+    "db:studio": "drizzle-kit studio"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "KICH DB - Database Management System like Supabase"
+}

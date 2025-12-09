@@ -19,7 +19,11 @@ import {
   TableIcon,
   LogOut,
   Settings,
-  HardDrive
+  HardDrive,
+  Pencil,
+  Check,
+  X,
+  ChevronRight
 } from 'lucide-react'
 
 interface Machine {
@@ -98,6 +102,9 @@ export default function Index() {
   const [newColumnName, setNewColumnName] = useState('')
   const [newColumnType, setNewColumnType] = useState('text')
   const [selectedTable, setSelectedTable] = useState<TableData | null>(null)
+  const [editingColumn, setEditingColumn] = useState<string | null>(null)
+  const [editColumnName, setEditColumnName] = useState('')
+  const [editColumnType, setEditColumnType] = useState('')
 
   // Load machine from localStorage on startup
   useEffect(() => {
@@ -295,10 +302,56 @@ export default function Index() {
         body: JSON.stringify({ name: newColumnName, type: newColumnType }),
       })
       await loadTables(currentProject.id)
+      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`)).then(r => r.json())
+      const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
+      if (updated) setSelectedTable(updated)
       setNewColumnName('')
     } catch (error) {
       console.error('Error adding column:', error)
     }
+  }
+
+  const updateColumn = async (columnName: string) => {
+    if (!currentProject || !selectedTable) return
+    try {
+      await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/columns/${columnName}`), {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          newName: editColumnName !== columnName ? editColumnName : undefined,
+          newType: editColumnType 
+        }),
+      })
+      await loadTables(currentProject.id)
+      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`)).then(r => r.json())
+      const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
+      if (updated) setSelectedTable(updated)
+      setEditingColumn(null)
+    } catch (error) {
+      console.error('Error updating column:', error)
+    }
+  }
+
+  const deleteColumn = async (columnName: string) => {
+    if (!currentProject || !selectedTable) return
+    if (!confirm(`Удалить колонку "${columnName}"? Данные в этой колонке будут потеряны.`)) return
+    try {
+      await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/columns/${columnName}`), {
+        method: 'DELETE',
+      })
+      await loadTables(currentProject.id)
+      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`)).then(r => r.json())
+      const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
+      if (updated) setSelectedTable(updated)
+    } catch (error) {
+      console.error('Error deleting column:', error)
+    }
+  }
+
+  const startEditColumn = (col: { name: string; type: string }) => {
+    setEditingColumn(col.name)
+    setEditColumnName(col.name)
+    setEditColumnType(col.type)
   }
 
   const loadAuthUsers = async (projectId: string) => {
@@ -708,28 +761,153 @@ export default function Index() {
               {selectedTable && (
                 <Card>
                   <CardHeader>
-                    <CardTitle>Добавить колонку в {selectedTable.name}</CardTitle>
+                    <div className="flex items-center justify-between">
+                      <CardTitle className="flex items-center gap-2">
+                        <TableIcon className="w-5 h-5" />
+                        {selectedTable.name}
+                        <Badge variant="outline">{selectedTable.columns.length} колонок</Badge>
+                      </CardTitle>
+                      <Button variant="ghost" size="sm" onClick={() => setSelectedTable(null)}>
+                        <X className="w-4 h-4" />
+                      </Button>
+                    </div>
+                    <CardDescription>Редактирование структуры таблицы</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <div className="flex gap-2">
-                      <Input
-                        placeholder="Название колонки"
-                        value={newColumnName}
-                        onChange={(e) => setNewColumnName(e.target.value)}
-                      />
-                      <select
-                        className="px-3 py-2 border rounded-md bg-background"
-                        value={newColumnType}
-                        onChange={(e) => setNewColumnType(e.target.value)}
-                      >
-                        <option value="text">text</option>
-                        <option value="int">int</option>
-                        <option value="boolean">boolean</option>
-                        <option value="timestamp">timestamp</option>
-                        <option value="uuid">uuid</option>
-                        <option value="json">json</option>
-                      </select>
-                      <Button onClick={addColumn}>Добавить</Button>
+                  <CardContent className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-[200px]">Название</TableHead>
+                          <TableHead className="w-[150px]">Тип</TableHead>
+                          <TableHead className="w-[100px]">Ключ</TableHead>
+                          <TableHead className="w-[120px]">Действия</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {selectedTable.columns.map((col) => (
+                          <TableRow key={col.name}>
+                            <TableCell>
+                              {editingColumn === col.name ? (
+                                <Input
+                                  value={editColumnName}
+                                  onChange={(e) => setEditColumnName(e.target.value)}
+                                  className="h-8"
+                                  disabled={col.primary}
+                                />
+                              ) : (
+                                <span className="font-mono">{col.name}</span>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {editingColumn === col.name ? (
+                                <select
+                                  className="px-2 py-1 border rounded-md bg-background text-sm w-full"
+                                  value={editColumnType}
+                                  onChange={(e) => setEditColumnType(e.target.value)}
+                                  disabled={col.primary}
+                                >
+                                  <option value="text">text</option>
+                                  <option value="int">int</option>
+                                  <option value="boolean">boolean</option>
+                                  <option value="timestamp">timestamp</option>
+                                  <option value="uuid">uuid</option>
+                                  <option value="json">json</option>
+                                </select>
+                              ) : (
+                                <Badge variant="secondary">{col.type}</Badge>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              {col.primary && <Badge>PK</Badge>}
+                            </TableCell>
+                            <TableCell>
+                              {col.primary ? (
+                                <span className="text-xs text-muted-foreground">Системная</span>
+                              ) : editingColumn === col.name ? (
+                                <div className="flex gap-1">
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateColumn(col.name)}>
+                                    <Check className="w-4 h-4 text-green-600" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingColumn(null)}>
+                                    <X className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <div className="flex gap-1">
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditColumn(col)}>
+                                    <Pencil className="w-4 h-4" />
+                                  </Button>
+                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteColumn(col.name)}>
+                                    <Trash2 className="w-4 h-4 text-destructive" />
+                                  </Button>
+                                </div>
+                              )}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                    
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-medium mb-2">Добавить новую колонку</h4>
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Название колонки"
+                          value={newColumnName}
+                          onChange={(e) => setNewColumnName(e.target.value)}
+                          className="flex-1"
+                        />
+                        <select
+                          className="px-3 py-2 border rounded-md bg-background"
+                          value={newColumnType}
+                          onChange={(e) => setNewColumnType(e.target.value)}
+                        >
+                          <option value="text">text</option>
+                          <option value="int">int</option>
+                          <option value="boolean">boolean</option>
+                          <option value="timestamp">timestamp</option>
+                          <option value="uuid">uuid</option>
+                          <option value="json">json</option>
+                        </select>
+                        <Button onClick={addColumn}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Добавить
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="border-t pt-4">
+                      <h4 className="text-sm font-medium mb-2">Данные таблицы</h4>
+                      <p className="text-sm text-muted-foreground mb-2">{selectedTable.rows.length} записей</p>
+                      {selectedTable.rows.length > 0 && (
+                        <div className="max-h-60 overflow-auto border rounded-md">
+                          <Table>
+                            <TableHeader>
+                              <TableRow>
+                                {selectedTable.columns.map(col => (
+                                  <TableHead key={col.name} className="text-xs">{col.name}</TableHead>
+                                ))}
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {selectedTable.rows.slice(0, 10).map((row, idx) => (
+                                <TableRow key={idx}>
+                                  {selectedTable.columns.map(col => (
+                                    <TableCell key={col.name} className="text-xs font-mono">
+                                      {String(row[col.name] ?? '-')}
+                                    </TableCell>
+                                  ))}
+                                </TableRow>
+                              ))}
+                            </TableBody>
+                          </Table>
+                          {selectedTable.rows.length > 10 && (
+                            <div className="p-2 text-center text-xs text-muted-foreground border-t">
+                              Показано 10 из {selectedTable.rows.length} записей
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
