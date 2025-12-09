@@ -2,6 +2,7 @@ import express from 'express';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { app } from 'electron';
 
 interface Machine {
   id: string;
@@ -69,7 +70,8 @@ interface Database {
   files: StorageFile[];
 }
 
-const DB_PATH = path.join(process.cwd(), 'database.json');
+// Используем постоянную папку для данных приложения
+const DB_PATH = path.join(app.getPath('userData'), 'database.json');
 
 function loadDatabase(): Database {
   try {
