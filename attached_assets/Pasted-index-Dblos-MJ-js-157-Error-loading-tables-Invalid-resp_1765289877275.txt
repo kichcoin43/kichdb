@@ -1,0 +1,110 @@
+index-Dblos-MJ.js:157 Error loading tables: Invalid response
+$s @ index-Dblos-MJ.js:157
+await in $s
+Xd @ index-Dblos-MJ.js:157
+onClick @ index-Dblos-MJ.js:166
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
+index-Dblos-MJ.js:157 Error loading auth users: Invalid response
+qd @ index-Dblos-MJ.js:157
+await in qd
+Xd @ index-Dblos-MJ.js:157
+await in Xd
+onClick @ index-Dblos-MJ.js:166
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
+index-Dblos-MJ.js:157 Error loading buckets: Invalid response
+tf @ index-Dblos-MJ.js:157
+await in tf
+Xd @ index-Dblos-MJ.js:157
+await in Xd
+onClick @ index-Dblos-MJ.js:166
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
+index-Dblos-MJ.js:157 
+        
+        
+       POST http://127.0.0.1:3030/api/admin/projects/undefined/tables 404 (Not Found)
+Yd @ index-Dblos-MJ.js:157
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
+index-Dblos-MJ.js:157 Error creating table: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+Yd @ index-Dblos-MJ.js:157
+await in Yd
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
+index-Dblos-MJ.js:157 
+        
+        
+       POST http://127.0.0.1:3030/api/admin/projects/undefined/storage/buckets 404 (Not Found)
+nf @ index-Dblos-MJ.js:157
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
+index-Dblos-MJ.js:157 Error creating bucket: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
+nf @ index-Dblos-MJ.js:157
+await in nf
+Vf @ index-Dblos-MJ.js:37
+Hf @ index-Dblos-MJ.js:37
+Qf @ index-Dblos-MJ.js:37
+ma @ index-Dblos-MJ.js:37
+kc @ index-Dblos-MJ.js:37
+(anonymous) @ index-Dblos-MJ.js:37
+js @ index-Dblos-MJ.js:40
+Qu @ index-Dblos-MJ.js:37
+Po @ index-Dblos-MJ.js:37
+Ji @ index-Dblos-MJ.js:37
+sp @ index-Dblos-MJ.js:37
