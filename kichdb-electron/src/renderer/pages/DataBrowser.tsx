@@ -80,19 +80,19 @@ export default function DataBrowser() {
     try {
       setLoading(true)
       const response = await fetch(
-        apiUrl(`/projects/${projectId}/${selectedTable.id}`),
+        apiUrl(`/projects/${projectId}/${selectedTable.name}`),
         {
           method: 'POST',
           headers: {
-            apikey: apiKey,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(editingRow),
         }
       )
       const data = await response.json()
-      setRows([...rows, ...(data.data || [])])
+      setRows([...rows, data])
       setEditingRow(null)
+      await loadTables()
     } catch (error) {
       console.error('Error saving row:', error)
     } finally {
@@ -107,13 +107,13 @@ export default function DataBrowser() {
     try {
       setLoading(true)
       await fetch(
-        apiUrl(`/projects/${projectId}/${selectedTable.id}?eq=id.${row.id}`),
+        apiUrl(`/projects/${projectId}/${selectedTable.name}/${row.id}`),
         {
           method: 'DELETE',
-          headers: { apikey: apiKey },
         }
       )
       setRows(rows.filter((r) => r.id !== row.id))
+      await loadTables()
     } catch (error) {
       console.error('Error deleting row:', error)
     } finally {
