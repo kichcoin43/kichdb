@@ -4,8 +4,7 @@ import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
-import { apiUrl, getApiUrl } from '@/lib/api'
-import { RealtimeClient } from '@/lib/realtime'
+import { apiUrl } from '@/lib/api'
 import {
   Database,
   Plus,
@@ -18,18 +17,13 @@ import {
   Users,
   TableIcon,
   LogOut,
-  Settings,
   HardDrive,
   Pencil,
   Check,
   X,
-  ChevronRight
+  ChevronRight,
+  Lock
 } from 'lucide-react'
-
-interface Machine {
-  id: string
-  name: string
-}
 
 interface Project {
   id: string
@@ -74,11 +68,8 @@ interface StorageFile {
 }
 
 export default function Index() {
-  const [machine, setMachine] = useState<Machine | null>(null)
-  const [machineToken, setMachineToken] = useState<string | null>(null)
-  const [loginMode, setLoginMode] = useState<'login' | 'register'>('login')
-  const [machineName, setMachineName] = useState('')
-  const [machinePassword, setMachinePassword] = useState('')
+  const [adminToken, setAdminToken] = useState<string | null>(null)
+  const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
 
@@ -106,55 +97,58 @@ export default function Index() {
   const [editColumnName, setEditColumnName] = useState('')
   const [editColumnType, setEditColumnType] = useState('')
 
-  // Load machine from localStorage on startup
+  const [newRowData, setNewRowData] = useState<Record<string, string>>({})
+  const [editingRow, setEditingRow] = useState<string | null>(null)
+  const [editRowData, setEditRowData] = useState<Record<string, unknown>>({})
+
   useEffect(() => {
-    const savedToken = localStorage.getItem("machineToken");
-    const savedMachine = localStorage.getItem("machine");
-    if (savedToken && savedMachine && savedMachine !== "undefined") {
-      try {
-        setMachineToken(savedToken);
-        setMachine(JSON.parse(savedMachine));
-      } catch (error) {
-        console.error("Failed to parse saved machine data:", error);
-        localStorage.removeItem("machineToken");
-        localStorage.removeItem("machine");
-      }
+    const savedToken = localStorage.getItem("adminToken");
+    if (savedToken) {
+      verifyToken(savedToken);
     }
   }, []);
 
-  useEffect(() => {
-    if (machineToken) {
-      loadProjects()
+  const verifyToken = async (token: string) => {
+    try {
+      const response = await fetch(apiUrl('/auth/verify'), {
+        headers: { 'X-Admin-Token': token }
+      });
+      if (response.ok) {
+        setAdminToken(token);
+        loadProjects(token);
+      } else {
+        localStorage.removeItem("adminToken");
+      }
+    } catch {
+      localStorage.removeItem("adminToken");
     }
-  }, [machineToken])
+  };
 
-  const handleMachineAuth = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
     setAuthError('')
     setAuthLoading(true)
 
     try {
-      const endpoint = loginMode === 'login' ? apiUrl('/machines/login') : apiUrl('/machines/register')
-      const response = await fetch(endpoint, {
+      const response = await fetch(apiUrl('/auth/login'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: machineName, password: machinePassword }),
+        body: JSON.stringify({ password }),
       })
 
       const data = await response.json()
 
       if (!response.ok) {
-        setAuthError(data.error || 'Ошибка авторизации')
+        setAuthError(data.error || 'Неверный пароль')
         return;
       }
 
-      if (data.token && data.machine) {
-        localStorage.setItem("machineToken", data.token);
-        localStorage.setItem("machine", JSON.stringify(data.machine));
-        setMachineToken(data.token);
-        setMachine(data.machine);
+      if (data.token) {
+        localStorage.setItem("adminToken", data.token);
+        setAdminToken(data.token);
+        loadProjects(data.token);
       } else {
-        setAuthError("Некорректный ответ сервера");
+        setAuthError("Ошибка авторизации");
       }
     } catch {
       setAuthError('Ошибка подключения к серверу')
@@ -163,20 +157,26 @@ export default function Index() {
     }
   }
 
-  const handleLogout = () => {
-    localStorage.removeItem('machineToken')
-    localStorage.removeItem('machine')
-    setMachineToken(null)
-    setMachine(null)
+  const handleLogout = async () => {
+    try {
+      await fetch(apiUrl('/auth/logout'), {
+        method: 'POST',
+        headers: { 'X-Admin-Token': adminToken || '' }
+      });
+    } catch {}
+    
+    localStorage.removeItem('adminToken')
+    setAdminToken(null)
     setProjects([])
     setCurrentProject(null)
+    setPassword('')
   }
 
-  const loadProjects = async () => {
+  const loadProjects = async (token?: string) => {
     try {
       setLoading(true)
       const response = await fetch(apiUrl('/admin/projects'), {
-        headers: { 'X-Machine-Id': machineToken || '' }
+        headers: { 'X-Admin-Token': token || adminToken || '' }
       })
       const contentType = response.headers.get('content-type')
       if (!response.ok || !contentType?.includes('application/json')) {
@@ -202,7 +202,7 @@ export default function Index() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'X-Machine-Id': machineToken || ''
+          'X-Admin-Token': adminToken || ''
         },
         body: JSON.stringify({ name: newProjectName }),
       })
@@ -221,7 +221,7 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${projectId}`), {
         method: 'DELETE',
-        headers: { 'X-Machine-Id': machineToken || '' }
+        headers: { 'X-Admin-Token': adminToken || '' }
       })
       setProjects(projects.filter(p => p.id !== projectId))
       if (currentProject?.id === projectId) {
@@ -243,7 +243,9 @@ export default function Index() {
 
   const loadTables = async (projectId: string) => {
     try {
-      const response = await fetch(apiUrl(`/admin/projects/${projectId}/tables`))
+      const response = await fetch(apiUrl(`/admin/projects/${projectId}/tables`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      })
       const contentType = response.headers.get('content-type')
       if (!response.ok || !contentType?.includes('application/json')) {
         console.error('Error loading tables: Invalid response')
@@ -264,7 +266,10 @@ export default function Index() {
       setLoading(true)
       const response = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken || ''
+        },
         body: JSON.stringify({ name: newTableName }),
       })
       const data = await response.json()
@@ -283,6 +288,7 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${tableName}`), {
         method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken || '' }
       })
       setTables(tables.filter(t => t.name !== tableName))
       if (selectedTable?.name === tableName) {
@@ -298,11 +304,16 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/columns`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken || ''
+        },
         body: JSON.stringify({ name: newColumnName, type: newColumnType }),
       })
       await loadTables(currentProject.id)
-      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`)).then(r => r.json())
+      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      }).then(r => r.json())
       const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
       if (updated) setSelectedTable(updated)
       setNewColumnName('')
@@ -316,14 +327,19 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/columns/${columnName}`), {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken || ''
+        },
         body: JSON.stringify({ 
           newName: editColumnName !== columnName ? editColumnName : undefined,
           newType: editColumnType 
         }),
       })
       await loadTables(currentProject.id)
-      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`)).then(r => r.json())
+      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      }).then(r => r.json())
       const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
       if (updated) setSelectedTable(updated)
       setEditingColumn(null)
@@ -338,9 +354,12 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/columns/${columnName}`), {
         method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken || '' }
       })
       await loadTables(currentProject.id)
-      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`)).then(r => r.json())
+      const updatedTables = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      }).then(r => r.json())
       const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
       if (updated) setSelectedTable(updated)
     } catch (error) {
@@ -354,9 +373,73 @@ export default function Index() {
     setEditColumnType(col.type)
   }
 
+  const addRow = async () => {
+    if (!currentProject || !selectedTable) return
+    try {
+      const response = await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/rows`), {
+        method: 'POST',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken || ''
+        },
+        body: JSON.stringify(newRowData),
+      })
+      const newRow = await response.json()
+      const updatedTable = { ...selectedTable, rows: [...selectedTable.rows, newRow] }
+      setSelectedTable(updatedTable)
+      setTables(tables.map(t => t.id === selectedTable.id ? updatedTable : t))
+      setNewRowData({})
+    } catch (error) {
+      console.error('Error adding row:', error)
+    }
+  }
+
+  const updateRow = async (rowId: string) => {
+    if (!currentProject || !selectedTable) return
+    try {
+      await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/rows/${rowId}`), {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken || ''
+        },
+        body: JSON.stringify(editRowData),
+      })
+      const updatedRows = selectedTable.rows.map(r => 
+        (r as Record<string, unknown>).id === rowId ? { ...r, ...editRowData } : r
+      )
+      const updatedTable = { ...selectedTable, rows: updatedRows }
+      setSelectedTable(updatedTable)
+      setTables(tables.map(t => t.id === selectedTable.id ? updatedTable : t))
+      setEditingRow(null)
+      setEditRowData({})
+    } catch (error) {
+      console.error('Error updating row:', error)
+    }
+  }
+
+  const deleteRow = async (rowId: string) => {
+    if (!currentProject || !selectedTable) return
+    if (!confirm('Удалить эту запись?')) return
+    try {
+      await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/rows/${rowId}`), {
+        method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken || '' }
+      })
+      const updatedRows = selectedTable.rows.filter(r => (r as Record<string, unknown>).id !== rowId)
+      const updatedTable = { ...selectedTable, rows: updatedRows }
+      setSelectedTable(updatedTable)
+      setTables(tables.map(t => t.id === selectedTable.id ? updatedTable : t))
+    } catch (error) {
+      console.error('Error deleting row:', error)
+    }
+  }
+
   const loadAuthUsers = async (projectId: string) => {
     try {
-      const response = await fetch(apiUrl(`/admin/projects/${projectId}/auth/users`))
+      const response = await fetch(apiUrl(`/admin/projects/${projectId}/auth/users`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      })
       const contentType = response.headers.get('content-type')
       if (!response.ok || !contentType?.includes('application/json')) {
         console.error('Error loading auth users: Invalid response')
@@ -377,6 +460,7 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/auth/users/${userId}`), {
         method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken || '' }
       })
       setAuthUsers(authUsers.filter(u => u.id !== userId))
     } catch (error) {
@@ -386,7 +470,9 @@ export default function Index() {
 
   const loadBuckets = async (projectId: string) => {
     try {
-      const response = await fetch(apiUrl(`/admin/projects/${projectId}/storage/buckets`))
+      const response = await fetch(apiUrl(`/admin/projects/${projectId}/storage/buckets`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      })
       const contentType = response.headers.get('content-type')
       if (!response.ok || !contentType?.includes('application/json')) {
         console.error('Error loading buckets: Invalid response')
@@ -407,7 +493,10 @@ export default function Index() {
       setLoading(true)
       const response = await fetch(apiUrl(`/admin/projects/${currentProject.id}/storage/buckets`), {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 
+          'Content-Type': 'application/json',
+          'X-Admin-Token': adminToken || ''
+        },
         body: JSON.stringify({ name: newBucketName, public: newBucketPublic }),
       })
       const data = await response.json()
@@ -427,6 +516,7 @@ export default function Index() {
     try {
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/storage/buckets/${bucketName}`), {
         method: 'DELETE',
+        headers: { 'X-Admin-Token': adminToken || '' }
       })
       setBuckets(buckets.filter(b => b.name !== bucketName))
       if (selectedBucket?.name === bucketName) {
@@ -442,7 +532,9 @@ export default function Index() {
     if (!currentProject) return
     setSelectedBucket(bucket)
     try {
-      const response = await fetch(apiUrl(`/admin/projects/${currentProject.id}/storage/buckets/${bucket.name}/files`))
+      const response = await fetch(apiUrl(`/admin/projects/${currentProject.id}/storage/buckets/${bucket.name}/files`), {
+        headers: { 'X-Admin-Token': adminToken || '' }
+      })
       const contentType = response.headers.get('content-type')
       if (!response.ok || !contentType?.includes('application/json')) {
         console.error('Error loading files: Invalid response')
@@ -463,71 +555,39 @@ export default function Index() {
     setTimeout(() => setCopied(null), 2000)
   }
 
-  if (!machineToken) {
+  if (!adminToken) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
               <div className="p-3 bg-primary/10 rounded-xl">
-                <Database className="w-10 h-10 text-primary" />
+                <Lock className="w-10 h-10 text-primary" />
               </div>
             </div>
             <CardTitle className="text-2xl">KICH DB</CardTitle>
             <CardDescription>
-              {loginMode === 'login' ? 'Войдите в систему' : 'Создайте аккаунт'}
+              Введите пароль для доступа
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleMachineAuth} className="space-y-4">
-              <div>
-                <Input
-                  placeholder="Имя пользователя"
-                  value={machineName}
-                  onChange={(e) => setMachineName(e.target.value)}
-                  required
-                />
-              </div>
+            <form onSubmit={handleLogin} className="space-y-4">
               <div>
                 <Input
                   type="password"
                   placeholder="Пароль"
-                  value={machinePassword}
-                  onChange={(e) => setMachinePassword(e.target.value)}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   required
+                  autoFocus
                 />
               </div>
               {authError && (
                 <p className="text-sm text-destructive">{authError}</p>
               )}
               <Button type="submit" className="w-full" disabled={authLoading}>
-                {authLoading ? 'Загрузка...' : loginMode === 'login' ? 'Войти' : 'Зарегистрироваться'}
+                {authLoading ? 'Проверка...' : 'Войти'}
               </Button>
-              <p className="text-center text-sm text-muted-foreground">
-                {loginMode === 'login' ? (
-                  <>
-                    Нет аккаунта?{' '}
-                    <button
-                      type="button"
-                      className="text-primary hover:underline"
-                      onClick={() => setLoginMode('register')}
-                    >
-                      Зарегистрироваться
-                    </button>
-                  </>
-                ) : (
-                  <>
-                    Уже есть аккаунт?{' '}
-                    <button
-                      type="button"
-                      className="text-primary hover:underline"
-                      onClick={() => setLoginMode('login')}
-                    >
-                      Войти
-                    </button>
-                  </>
-                )}
-              </p>
             </form>
           </CardContent>
         </Card>
@@ -546,7 +606,7 @@ export default function Index() {
               </div>
               <div>
                 <h1 className="text-2xl font-bold">KICH DB</h1>
-                <p className="text-sm text-muted-foreground">Добро пожаловать, {machine?.name}</p>
+                <p className="text-sm text-muted-foreground">Панель управления базой данных</p>
               </div>
             </div>
             <Button variant="ghost" onClick={handleLogout}>
@@ -633,7 +693,6 @@ export default function Index() {
             <span className="font-medium">{currentProject.name}</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">{machine?.name}</span>
             <Button variant="ghost" size="icon" onClick={handleLogout}>
               <LogOut className="w-4 h-4" />
             </Button>
@@ -642,28 +701,48 @@ export default function Index() {
       </header>
 
       <div className="flex">
-        <aside className="w-64 border-r bg-card min-h-[calc(100vh-73px)] p-4">
+        <aside className="w-64 border-r min-h-[calc(100vh-73px)] bg-card p-4">
           <nav className="space-y-2">
-            {[
-              { id: 'dashboard', icon: Settings, label: 'Обзор' },
-              { id: 'tables', icon: TableIcon, label: 'Таблицы' },
-              { id: 'storage', icon: FolderOpen, label: 'Хранилище' },
-              { id: 'auth', icon: Users, label: 'Пользователи' },
-              { id: 'api', icon: Key, label: 'API Ключи' },
-            ].map((item) => (
-              <button
-                key={item.id}
-                className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-left transition-colors ${
-                  activeTab === item.id
-                    ? 'bg-primary text-primary-foreground'
-                    : 'hover:bg-muted'
-                }`}
-                onClick={() => setActiveTab(item.id as any)}
-              >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </button>
-            ))}
+            <Button
+              variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('dashboard')}
+            >
+              <HardDrive className="w-4 h-4 mr-2" />
+              Обзор
+            </Button>
+            <Button
+              variant={activeTab === 'tables' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('tables')}
+            >
+              <TableIcon className="w-4 h-4 mr-2" />
+              Таблицы
+            </Button>
+            <Button
+              variant={activeTab === 'storage' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('storage')}
+            >
+              <FolderOpen className="w-4 h-4 mr-2" />
+              Хранилище
+            </Button>
+            <Button
+              variant={activeTab === 'auth' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('auth')}
+            >
+              <Users className="w-4 h-4 mr-2" />
+              Пользователи
+            </Button>
+            <Button
+              variant={activeTab === 'api' ? 'secondary' : 'ghost'}
+              className="w-full justify-start"
+              onClick={() => setActiveTab('api')}
+            >
+              <Key className="w-4 h-4 mr-2" />
+              API Ключи
+            </Button>
           </nav>
         </aside>
 
@@ -674,21 +753,27 @@ export default function Index() {
               <div className="grid gap-4 md:grid-cols-3">
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardDescription>Таблицы</CardDescription>
-                    <CardTitle className="text-3xl">{tables.length}</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Таблицы</CardTitle>
                   </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{tables.length}</div>
+                  </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardDescription>Пользователи Auth</CardDescription>
-                    <CardTitle className="text-3xl">{authUsers.length}</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Пользователи</CardTitle>
                   </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{authUsers.length}</div>
+                  </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2">
-                    <CardDescription>Buckets</CardDescription>
-                    <CardTitle className="text-3xl">{buckets.length}</CardTitle>
+                    <CardTitle className="text-sm font-medium text-muted-foreground">Buckets</CardTitle>
                   </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">{buckets.length}</div>
+                  </CardContent>
                 </Card>
               </div>
             </div>
@@ -698,225 +783,249 @@ export default function Index() {
             <div className="space-y-6">
               <div className="flex items-center justify-between">
                 <h2 className="text-2xl font-bold">Таблицы</h2>
-                <div className="flex gap-2">
-                  <Input
-                    placeholder="Название таблицы"
-                    value={newTableName}
-                    onChange={(e) => setNewTableName(e.target.value)}
-                    className="w-48"
-                  />
-                  <Button onClick={createTable} disabled={loading}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать
-                  </Button>
-                </div>
               </div>
 
-              <div className="grid gap-4 md:grid-cols-2">
-                {tables.map((table) => (
-                  <Card key={table.id} className={selectedTable?.id === table.id ? 'border-primary' : ''}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <TableIcon className="w-4 h-4" />
-                          {table.name}
-                        </CardTitle>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => setSelectedTable(table)}
-                          >
-                            <Settings className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => deleteTable(table.name)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
+              {!selectedTable ? (
+                <>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Название таблицы"
+                          value={newTableName}
+                          onChange={(e) => setNewTableName(e.target.value)}
+                          onKeyDown={(e) => e.key === 'Enter' && createTable()}
+                        />
+                        <Button onClick={createTable} disabled={loading}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Создать
+                        </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex flex-wrap gap-1">
-                        {table.columns.map((col) => (
-                          <Badge key={col.name} variant="outline" className="text-xs">
-                            {col.name}: {col.type}
-                            {col.primary && ' (PK)'}
-                          </Badge>
-                        ))}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-2">
-                        {table.rows.length} записей
-                      </p>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
 
-              {selectedTable && (
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <CardTitle className="flex items-center gap-2">
-                        <TableIcon className="w-5 h-5" />
-                        {selectedTable.name}
-                        <Badge variant="outline">{selectedTable.columns.length} колонок</Badge>
-                      </CardTitle>
-                      <Button variant="ghost" size="sm" onClick={() => setSelectedTable(null)}>
-                        <X className="w-4 h-4" />
-                      </Button>
-                    </div>
-                    <CardDescription>Редактирование структуры таблицы</CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[200px]">Название</TableHead>
-                          <TableHead className="w-[150px]">Тип</TableHead>
-                          <TableHead className="w-[100px]">Ключ</TableHead>
-                          <TableHead className="w-[120px]">Действия</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {selectedTable.columns.map((col) => (
-                          <TableRow key={col.name}>
-                            <TableCell>
-                              {editingColumn === col.name ? (
-                                <Input
-                                  value={editColumnName}
-                                  onChange={(e) => setEditColumnName(e.target.value)}
-                                  className="h-8"
-                                  disabled={col.primary}
-                                />
-                              ) : (
-                                <span className="font-mono">{col.name}</span>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {editingColumn === col.name ? (
-                                <select
-                                  className="px-2 py-1 border rounded-md bg-background text-sm w-full"
-                                  value={editColumnType}
-                                  onChange={(e) => setEditColumnType(e.target.value)}
-                                  disabled={col.primary}
-                                >
-                                  <option value="text">text</option>
-                                  <option value="int">int</option>
-                                  <option value="boolean">boolean</option>
-                                  <option value="timestamp">timestamp</option>
-                                  <option value="uuid">uuid</option>
-                                  <option value="json">json</option>
-                                </select>
-                              ) : (
-                                <Badge variant="secondary">{col.type}</Badge>
-                              )}
-                            </TableCell>
-                            <TableCell>
-                              {col.primary && <Badge>PK</Badge>}
-                            </TableCell>
-                            <TableCell>
-                              {col.primary ? (
-                                <span className="text-xs text-muted-foreground">Системная</span>
-                              ) : editingColumn === col.name ? (
-                                <div className="flex gap-1">
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => updateColumn(col.name)}>
-                                    <Check className="w-4 h-4 text-green-600" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingColumn(null)}>
-                                    <X className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              ) : (
-                                <div className="flex gap-1">
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => startEditColumn(col)}>
-                                    <Pencil className="w-4 h-4" />
-                                  </Button>
-                                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => deleteColumn(col.name)}>
-                                    <Trash2 className="w-4 h-4 text-destructive" />
-                                  </Button>
-                                </div>
-                              )}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                    
-                    <div className="border-t pt-4">
-                      <h4 className="text-sm font-medium mb-2">Добавить новую колонку</h4>
-                      <div className="flex gap-2">
+                  <div className="grid gap-4">
+                    {tables.map((table) => (
+                      <Card key={table.id} className="cursor-pointer hover:border-primary/50" onClick={() => setSelectedTable(table)}>
+                        <CardHeader className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <TableIcon className="w-5 h-5 text-muted-foreground" />
+                              <CardTitle className="text-lg">{table.name}</CardTitle>
+                              <Badge variant="outline">{table.columns.length} колонок</Badge>
+                              <Badge variant="secondary">{table.rows.length} записей</Badge>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteTable(table.name)
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    <Button variant="ghost" onClick={() => setSelectedTable(null)}>
+                      ← Назад
+                    </Button>
+                    <h3 className="text-xl font-semibold">{selectedTable.name}</h3>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Колонки</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-2 mb-4">
                         <Input
                           placeholder="Название колонки"
                           value={newColumnName}
                           onChange={(e) => setNewColumnName(e.target.value)}
-                          className="flex-1"
                         />
                         <select
                           className="px-3 py-2 border rounded-md bg-background"
                           value={newColumnType}
                           onChange={(e) => setNewColumnType(e.target.value)}
                         >
-                          <option value="text">text</option>
-                          <option value="int">int</option>
-                          <option value="boolean">boolean</option>
-                          <option value="timestamp">timestamp</option>
-                          <option value="uuid">uuid</option>
-                          <option value="json">json</option>
+                          <option value="text">Text</option>
+                          <option value="integer">Integer</option>
+                          <option value="boolean">Boolean</option>
+                          <option value="uuid">UUID</option>
+                          <option value="timestamp">Timestamp</option>
+                          <option value="json">JSON</option>
                         </select>
                         <Button onClick={addColumn}>
                           <Plus className="w-4 h-4 mr-2" />
                           Добавить
                         </Button>
                       </div>
-                    </div>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Название</TableHead>
+                            <TableHead>Тип</TableHead>
+                            <TableHead className="w-24">Действия</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedTable.columns.map((col) => (
+                            <TableRow key={col.name}>
+                              <TableCell>
+                                {editingColumn === col.name ? (
+                                  <Input
+                                    value={editColumnName}
+                                    onChange={(e) => setEditColumnName(e.target.value)}
+                                    disabled={col.primary}
+                                  />
+                                ) : (
+                                  <span className="flex items-center gap-2">
+                                    {col.name}
+                                    {col.primary && <Badge>PK</Badge>}
+                                  </span>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {editingColumn === col.name ? (
+                                  <select
+                                    className="px-2 py-1 border rounded bg-background"
+                                    value={editColumnType}
+                                    onChange={(e) => setEditColumnType(e.target.value)}
+                                    disabled={col.primary}
+                                  >
+                                    <option value="text">Text</option>
+                                    <option value="integer">Integer</option>
+                                    <option value="boolean">Boolean</option>
+                                    <option value="uuid">UUID</option>
+                                    <option value="timestamp">Timestamp</option>
+                                    <option value="json">JSON</option>
+                                  </select>
+                                ) : (
+                                  col.type
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                {!col.primary && (
+                                  editingColumn === col.name ? (
+                                    <div className="flex gap-1">
+                                      <Button size="icon" variant="ghost" onClick={() => updateColumn(col.name)}>
+                                        <Check className="w-4 h-4" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" onClick={() => setEditingColumn(null)}>
+                                        <X className="w-4 h-4" />
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <div className="flex gap-1">
+                                      <Button size="icon" variant="ghost" onClick={() => startEditColumn(col)}>
+                                        <Pencil className="w-4 h-4" />
+                                      </Button>
+                                      <Button size="icon" variant="ghost" onClick={() => deleteColumn(col.name)}>
+                                        <Trash2 className="w-4 h-4 text-destructive" />
+                                      </Button>
+                                    </div>
+                                  )
+                                )}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
 
-                    <div className="border-t pt-4">
-                      <h4 className="text-sm font-medium mb-2">Данные таблицы</h4>
-                      <p className="text-sm text-muted-foreground mb-2">{selectedTable.rows.length} записей</p>
-                      {selectedTable.rows.length > 0 && (
-                        <div className="max-h-60 overflow-auto border rounded-md">
-                          <Table>
-                            <TableHeader>
-                              <TableRow>
-                                {selectedTable.columns.map(col => (
-                                  <TableHead key={col.name} className="text-xs">{col.name}</TableHead>
-                                ))}
-                              </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                              {selectedTable.rows.slice(0, 10).map((row, idx) => (
-                                <TableRow key={idx}>
-                                  {selectedTable.columns.map(col => (
-                                    <TableCell key={col.name} className="text-xs font-mono">
-                                      {String(row[col.name] ?? '-')}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Данные</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex gap-2 mb-4 flex-wrap">
+                        {selectedTable.columns.filter(c => !c.primary).map((col) => (
+                          <Input
+                            key={col.name}
+                            placeholder={col.name}
+                            value={newRowData[col.name] || ''}
+                            onChange={(e) => setNewRowData({ ...newRowData, [col.name]: e.target.value })}
+                            className="w-40"
+                          />
+                        ))}
+                        <Button onClick={addRow}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Добавить
+                        </Button>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              {selectedTable.columns.map((col) => (
+                                <TableHead key={col.name}>{col.name}</TableHead>
+                              ))}
+                              <TableHead className="w-24">Действия</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {selectedTable.rows.map((row) => {
+                              const rowData = row as Record<string, unknown>
+                              return (
+                                <TableRow key={rowData.id as string}>
+                                  {selectedTable.columns.map((col) => (
+                                    <TableCell key={col.name}>
+                                      {editingRow === rowData.id ? (
+                                        col.primary ? (
+                                          String(rowData[col.name] ?? '')
+                                        ) : (
+                                          <Input
+                                            value={String(editRowData[col.name] ?? '')}
+                                            onChange={(e) => setEditRowData({ ...editRowData, [col.name]: e.target.value })}
+                                            className="w-32"
+                                          />
+                                        )
+                                      ) : (
+                                        String(rowData[col.name] ?? '')
+                                      )}
                                     </TableCell>
                                   ))}
+                                  <TableCell>
+                                    {editingRow === rowData.id ? (
+                                      <div className="flex gap-1">
+                                        <Button size="icon" variant="ghost" onClick={() => updateRow(rowData.id as string)}>
+                                          <Check className="w-4 h-4" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" onClick={() => { setEditingRow(null); setEditRowData({}); }}>
+                                          <X className="w-4 h-4" />
+                                        </Button>
+                                      </div>
+                                    ) : (
+                                      <div className="flex gap-1">
+                                        <Button size="icon" variant="ghost" onClick={() => { setEditingRow(rowData.id as string); setEditRowData(rowData); }}>
+                                          <Pencil className="w-4 h-4" />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" onClick={() => deleteRow(rowData.id as string)}>
+                                          <Trash2 className="w-4 h-4 text-destructive" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </TableCell>
                                 </TableRow>
-                              ))}
-                            </TableBody>
-                          </Table>
-                          {selectedTable.rows.length > 10 && (
-                            <div className="p-2 text-center text-xs text-muted-foreground border-t">
-                              Показано 10 из {selectedTable.rows.length} записей
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {tables.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <TableIcon className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Нет таблиц. Создайте первую таблицу!</p>
+                              )
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </div>
@@ -924,106 +1033,103 @@ export default function Index() {
 
           {activeTab === 'storage' && (
             <div className="space-y-6">
-              <div className="flex items-center justify-between">
-                <h2 className="text-2xl font-bold">Хранилище</h2>
-                <div className="flex gap-2 items-center">
-                  <Input
-                    placeholder="Название bucket"
-                    value={newBucketName}
-                    onChange={(e) => setNewBucketName(e.target.value)}
-                    className="w-48"
-                  />
-                  <label className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={newBucketPublic}
-                      onChange={(e) => setNewBucketPublic(e.target.checked)}
-                    />
-                    Public
-                  </label>
-                  <Button onClick={createBucket} disabled={loading}>
-                    <Plus className="w-4 h-4 mr-2" />
-                    Создать
-                  </Button>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                {buckets.map((bucket) => (
-                  <Card key={bucket.id} className={selectedBucket?.id === bucket.id ? 'border-primary' : ''}>
-                    <CardHeader className="pb-3">
-                      <div className="flex items-center justify-between">
-                        <CardTitle className="text-lg flex items-center gap-2">
-                          <FolderOpen className="w-4 h-4" />
-                          {bucket.name}
-                        </CardTitle>
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => loadBucketFiles(bucket)}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            onClick={() => deleteBucket(bucket.name)}
-                          >
-                            <Trash2 className="w-4 h-4 text-destructive" />
-                          </Button>
-                        </div>
+              <h2 className="text-2xl font-bold">Хранилище</h2>
+              
+              {!selectedBucket ? (
+                <>
+                  <Card>
+                    <CardContent className="pt-6">
+                      <div className="flex gap-2 items-center">
+                        <Input
+                          placeholder="Название bucket"
+                          value={newBucketName}
+                          onChange={(e) => setNewBucketName(e.target.value)}
+                        />
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={newBucketPublic}
+                            onChange={(e) => setNewBucketPublic(e.target.checked)}
+                          />
+                          Публичный
+                        </label>
+                        <Button onClick={createBucket} disabled={loading}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Создать
+                        </Button>
                       </div>
-                    </CardHeader>
-                    <CardContent>
-                      <Badge variant={bucket.public ? 'default' : 'secondary'}>
-                        {bucket.public ? 'Public' : 'Private'}
-                      </Badge>
                     </CardContent>
                   </Card>
-                ))}
-              </div>
 
-              {selectedBucket && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Файлы в {selectedBucket.name}</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    {bucketFiles.length > 0 ? (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Имя</TableHead>
-                            <TableHead>Путь</TableHead>
-                            <TableHead>Размер</TableHead>
-                            <TableHead>Тип</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {bucketFiles.map((file) => (
-                            <TableRow key={file.id}>
-                              <TableCell>{file.name}</TableCell>
-                              <TableCell className="font-mono text-xs">{file.path}</TableCell>
-                              <TableCell>{(file.size / 1024).toFixed(2)} KB</TableCell>
-                              <TableCell>{file.mime_type}</TableCell>
+                  <div className="grid gap-4">
+                    {buckets.map((bucket) => (
+                      <Card key={bucket.id} className="cursor-pointer hover:border-primary/50" onClick={() => loadBucketFiles(bucket)}>
+                        <CardHeader className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <FolderOpen className="w-5 h-5 text-muted-foreground" />
+                              <CardTitle className="text-lg">{bucket.name}</CardTitle>
+                              {bucket.public && <Badge>Публичный</Badge>}
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  deleteBucket(bucket.name)
+                                }}
+                              >
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                              <ChevronRight className="w-5 h-5 text-muted-foreground" />
+                            </div>
+                          </div>
+                        </CardHeader>
+                      </Card>
+                    ))}
+                  </div>
+                </>
+              ) : (
+                <div className="space-y-6">
+                  <div className="flex items-center gap-4">
+                    <Button variant="ghost" onClick={() => { setSelectedBucket(null); setBucketFiles([]); }}>
+                      ← Назад
+                    </Button>
+                    <h3 className="text-xl font-semibold">{selectedBucket.name}</h3>
+                  </div>
+
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Файлы</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {bucketFiles.length === 0 ? (
+                        <p className="text-muted-foreground text-center py-8">Нет файлов в этом bucket</p>
+                      ) : (
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Имя</TableHead>
+                              <TableHead>Путь</TableHead>
+                              <TableHead>Размер</TableHead>
+                              <TableHead>Тип</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    ) : (
-                      <p className="text-muted-foreground">Нет файлов</p>
-                    )}
-                  </CardContent>
-                </Card>
-              )}
-
-              {buckets.length === 0 && (
-                <div className="text-center py-12 text-muted-foreground">
-                  <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Нет buckets. Создайте первый bucket!</p>
+                          </TableHeader>
+                          <TableBody>
+                            {bucketFiles.map((file) => (
+                              <TableRow key={file.id}>
+                                <TableCell>{file.name}</TableCell>
+                                <TableCell>{file.path}</TableCell>
+                                <TableCell>{file.size} bytes</TableCell>
+                                <TableCell>{file.mime_type}</TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      )}
+                    </CardContent>
+                  </Card>
                 </div>
               )}
             </div>
@@ -1031,125 +1137,126 @@ export default function Index() {
 
           {activeTab === 'auth' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Пользователи</h2>
-
-              {authUsers.length > 0 ? (
-                <Card>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Email</TableHead>
-                        <TableHead>ID</TableHead>
-                        <TableHead>Создан</TableHead>
-                        <TableHead></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {authUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>{user.email}</TableCell>
-                          <TableCell className="font-mono text-xs">{user.id}</TableCell>
-                          <TableCell>
-                            {new Date(user.created_at).toLocaleDateString('ru-RU')}
-                          </TableCell>
-                          <TableCell>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8"
-                              onClick={() => deleteAuthUser(user.id)}
-                            >
-                              <Trash2 className="w-4 h-4 text-destructive" />
-                            </Button>
-                          </TableCell>
+              <h2 className="text-2xl font-bold">Пользователи проекта</h2>
+              <Card>
+                <CardContent className="pt-6">
+                  {authUsers.length === 0 ? (
+                    <p className="text-muted-foreground text-center py-8">Нет пользователей</p>
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Создан</TableHead>
+                          <TableHead className="w-24">Действия</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </Card>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                  <p>Нет пользователей</p>
-                </div>
-              )}
+                      </TableHeader>
+                      <TableBody>
+                        {authUsers.map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>{user.email}</TableCell>
+                            <TableCell>{new Date(user.created_at).toLocaleDateString('ru-RU')}</TableCell>
+                            <TableCell>
+                              <Button size="icon" variant="ghost" onClick={() => deleteAuthUser(user.id)}>
+                                <Trash2 className="w-4 h-4 text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )}
+                </CardContent>
+              </Card>
             </div>
           )}
 
           {activeTab === 'api' && apiKeys && (
             <div className="space-y-6">
               <h2 className="text-2xl font-bold">API Ключи</h2>
-
-              <div className="space-y-4">
-                {[
-                  { key: 'anon', label: 'Anon Key', description: 'Публичный ключ для клиентского использования' },
-                  { key: 'service', label: 'Service Key', description: 'Приватный ключ с полным доступом' },
-                ].map((item) => (
-                  <Card key={item.key}>
-                    <CardHeader>
-                      <CardTitle className="text-lg flex items-center gap-2">
-                        <Key className="w-4 h-4" />
-                        {item.label}
-                      </CardTitle>
-                      <CardDescription>{item.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-2">
-                        <Input
-                          type={showApiKey[item.key] ? 'text' : 'password'}
-                          value={apiKeys[item.key as keyof ApiKeys]}
-                          readOnly
-                          className="font-mono"
-                        />
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() =>
-                            setShowApiKey({ ...showApiKey, [item.key]: !showApiKey[item.key] })
-                          }
-                        >
-                          {showApiKey[item.key] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => copyToClipboard(apiKeys[item.key as keyof ApiKeys], item.key)}
-                        >
-                          <Copy className="w-4 h-4" />
-                        </Button>
-                        {copied === item.key && (
-                          <span className="text-sm text-green-500">Скопировано!</span>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-
               <Card>
                 <CardHeader>
-                  <CardTitle>Примеры использования API</CardTitle>
+                  <CardTitle>Ключи доступа к проекту</CardTitle>
+                  <CardDescription>
+                    Используйте эти ключи для подключения внешних приложений к вашей базе данных
+                  </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <div>
-                    <p className="text-sm font-medium mb-2">Получить данные из таблицы:</p>
-                    <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-{`fetch('/api/projects/${currentProject.id}/TABLE_NAME?select=*', {
-  headers: { 'apikey': '${apiKeys.anon}' }
-})`}
-                    </pre>
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Project URL</label>
+                    <div className="flex gap-2">
+                      <Input value={currentProject.url || ''} readOnly className="font-mono text-sm" />
+                      <Button variant="outline" size="icon" onClick={() => copyToClipboard(currentProject.url || '', 'url')}>
+                        {copied === 'url' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm font-medium mb-2">Добавить запись:</p>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Anon Key (публичный)</label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={showApiKey['anon'] ? apiKeys.anon : '••••••••••••••••••••'} 
+                        readOnly 
+                        className="font-mono text-sm"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => setShowApiKey({ ...showApiKey, anon: !showApiKey['anon'] })}
+                      >
+                        {showApiKey['anon'] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => copyToClipboard(apiKeys.anon, 'anon')}>
+                        {copied === 'anon' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Используйте для клиентских приложений</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium">Service Key (приватный)</label>
+                    <div className="flex gap-2">
+                      <Input 
+                        value={showApiKey['service'] ? apiKeys.service : '••••••••••••••••••••'} 
+                        readOnly 
+                        className="font-mono text-sm"
+                      />
+                      <Button 
+                        variant="outline" 
+                        size="icon"
+                        onClick={() => setShowApiKey({ ...showApiKey, service: !showApiKey['service'] })}
+                      >
+                        {showApiKey['service'] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                      </Button>
+                      <Button variant="outline" size="icon" onClick={() => copyToClipboard(apiKeys.service, 'service')}>
+                        {copied === 'service' ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                      </Button>
+                    </div>
+                    <p className="text-xs text-muted-foreground">Используйте только на сервере. Никогда не делитесь этим ключом!</p>
+                  </div>
+
+                  <div className="border-t pt-4 mt-4">
+                    <h4 className="font-medium mb-2">Пример использования</h4>
                     <pre className="bg-muted p-4 rounded-lg text-sm overflow-x-auto">
-{`fetch('/api/projects/${currentProject.id}/TABLE_NAME', {
+{`// JavaScript/TypeScript
+const response = await fetch('${currentProject.url}/tableName', {
+  headers: {
+    'apikey': 'YOUR_ANON_KEY',
+    'Content-Type': 'application/json'
+  }
+});
+const data = await response.json();
+
+// Добавить запись
+await fetch('${currentProject.url}/tableName', {
   method: 'POST',
   headers: {
-    'apikey': '${apiKeys.anon}',
+    'apikey': 'YOUR_ANON_KEY',
     'Content-Type': 'application/json'
   },
   body: JSON.stringify({ field: 'value' })
-})`}
+});`}
                     </pre>
                   </div>
                 </CardContent>

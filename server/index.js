@@ -26,16 +26,34 @@ const db = drizzle(pool, { schema });
 const app = express();
 const PORT = process.env.PORT || 3030;
 
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Nokici1974';
+
 app.use(cors({
   origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Machine-Id', 'apikey'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Admin-Token', 'apikey'],
 }));
 
 app.use(express.json({ limit: '50mb' }));
 
 function generateApiKey(prefix) {
   return prefix + '_' + uuidv4().replace(/-/g, '');
+}
+
+function generateAdminToken() {
+  return 'admin_' + uuidv4().replace(/-/g, '');
+}
+
+const adminTokens = new Set();
+
+function validateAdminToken(req, res, next) {
+  const token = req.headers['x-admin-token'] || req.headers['authorization']?.replace('Bearer ', '');
+  
+  if (!token || !adminTokens.has(token)) {
+    return res.status(401).json({ error: 'Требуется авторизация администратора' });
+  }
+  
+  next();
 }
 
 async function validateApiKey(req, res, next) {
@@ -57,8 +75,8 @@ async function validateApiKey(req, res, next) {
       return next();
     }
     
-    const machineId = req.headers['x-machine-id'];
-    if (machineId && project.machineId === machineId) {
+    const adminToken = req.headers['x-admin-token'];
+    if (adminToken && adminTokens.has(adminToken)) {
       req.project = project;
       return next();
     }
@@ -70,46 +88,24 @@ async function validateApiKey(req, res, next) {
   }
 }
 
-app.post('/api/machines/register', async (req, res) => {
+app.post('/api/auth/login', async (req, res) => {
   try {
-    const { name, password } = req.body;
-    if (!name || !password) {
-      return res.status(400).json({ error: 'Имя и пароль обязательны' });
-    }
-
-    const existing = await db.select().from(schema.machines).where(eq(schema.machines.name, name));
-    if (existing.length > 0) {
-      return res.status(400).json({ error: 'Пользователь уже существует' });
-    }
-
-    const [machine] = await db.insert(schema.machines).values({ name, password }).returning();
-    res.json({
-      token: machine.id,
-      machine: { id: machine.id, name: machine.name }
-    });
-  } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Ошибка сервера' });
-  }
-});
-
-app.post('/api/machines/login', async (req, res) => {
-  try {
-    const { name, password } = req.body;
-    if (!name || !password) {
-      return res.status(400).json({ error: 'Имя и пароль обязательны' });
-    }
-
-    const [machine] = await db.select().from(schema.machines)
-      .where(and(eq(schema.machines.name, name), eq(schema.machines.password, password)));
+    const { password } = req.body;
     
-    if (!machine) {
-      return res.status(401).json({ error: 'Неверное имя или пароль' });
+    if (!password) {
+      return res.status(400).json({ error: 'Пароль обязателен' });
     }
 
+    if (password !== ADMIN_PASSWORD) {
+      return res.status(401).json({ error: 'Неверный пароль' });
+    }
+
+    const token = generateAdminToken();
+    adminTokens.add(token);
+
     res.json({
-      token: machine.id,
-      machine: { id: machine.id, name: machine.name }
+      token,
+      message: 'Успешный вход'
     });
   } catch (error) {
     console.error('Login error:', error);
@@ -117,14 +113,26 @@ app.post('/api/machines/login', async (req, res) => {
   }
 });
 
-app.get('/api/admin/projects', async (req, res) => {
-  try {
-    const machineId = req.headers['x-machine-id'];
-    if (!machineId) {
-      return res.status(401).json({ error: 'Требуется авторизация' });
-    }
+app.post('/api/auth/logout', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (token) {
+    adminTokens.delete(token);
+  }
+  res.json({ success: true });
+});
 
-    const projectsList = await db.select().from(schema.projects).where(eq(schema.projects.machineId, machineId));
+app.get('/api/auth/verify', (req, res) => {
+  const token = req.headers['x-admin-token'];
+  if (token && adminTokens.has(token)) {
+    res.json({ valid: true });
+  } else {
+    res.status(401).json({ valid: false });
+  }
+});
+
+app.get('/api/admin/projects', validateAdminToken, async (req, res) => {
+  try {
+    const projectsList = await db.select().from(schema.projects);
     const result = projectsList.map(p => ({
       id: p.id,
       name: p.name,
@@ -140,13 +148,9 @@ app.get('/api/admin/projects', async (req, res) => {
   }
 });
 
-app.post('/api/admin/projects', async (req, res) => {
+app.post('/api/admin/projects', validateAdminToken, async (req, res) => {
   try {
-    const machineId = req.headers['x-machine-id'];
     const { name } = req.body;
-    if (!machineId) {
-      return res.status(401).json({ error: 'Требуется авторизация' });
-    }
     if (!name) {
       return res.status(400).json({ error: 'Название проекта обязательно' });
     }
@@ -156,7 +160,7 @@ app.post('/api/admin/projects', async (req, res) => {
     const serviceKey = generateApiKey('sk_service');
 
     const [project] = await db.insert(schema.projects).values({
-      machineId,
+      machineId: '00000000-0000-0000-0000-000000000000',
       name,
       url: `${baseUrl}/api/projects/${uuidv4()}`,
       status: 'active',
@@ -180,13 +184,11 @@ app.post('/api/admin/projects', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/projects/:id', async (req, res) => {
+app.delete('/api/admin/projects/:id', validateAdminToken, async (req, res) => {
   try {
-    const machineId = req.headers['x-machine-id'];
     const { id } = req.params;
 
-    const [project] = await db.select().from(schema.projects)
-      .where(and(eq(schema.projects.id, id), eq(schema.projects.machineId, machineId)));
+    const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
     
     if (!project) {
       return res.status(404).json({ error: 'Проект не найден' });
@@ -200,7 +202,7 @@ app.delete('/api/admin/projects/:id', async (req, res) => {
   }
 });
 
-app.get('/api/admin/projects/:projectId/tables', async (req, res) => {
+app.get('/api/admin/projects/:projectId/tables', validateAdminToken, async (req, res) => {
   try {
     const { projectId } = req.params;
     
@@ -217,7 +219,7 @@ app.get('/api/admin/projects/:projectId/tables', async (req, res) => {
   }
 });
 
-app.post('/api/admin/projects/:projectId/tables', async (req, res) => {
+app.post('/api/admin/projects/:projectId/tables', validateAdminToken, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name } = req.body;
@@ -250,7 +252,7 @@ app.post('/api/admin/projects/:projectId/tables', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/projects/:projectId/tables/:tableName', async (req, res) => {
+app.delete('/api/admin/projects/:projectId/tables/:tableName', validateAdminToken, async (req, res) => {
   try {
     const { projectId, tableName } = req.params;
 
@@ -269,7 +271,7 @@ app.delete('/api/admin/projects/:projectId/tables/:tableName', async (req, res) 
   }
 });
 
-app.post('/api/admin/projects/:projectId/tables/:tableId/columns', async (req, res) => {
+app.post('/api/admin/projects/:projectId/tables/:tableId/columns', validateAdminToken, async (req, res) => {
   try {
     const { projectId, tableId } = req.params;
     const { name, type } = req.body;
@@ -303,7 +305,7 @@ app.post('/api/admin/projects/:projectId/tables/:tableId/columns', async (req, r
   }
 });
 
-app.put('/api/admin/projects/:projectId/tables/:tableId/columns/:columnName', async (req, res) => {
+app.put('/api/admin/projects/:projectId/tables/:tableId/columns/:columnName', validateAdminToken, async (req, res) => {
   try {
     const { projectId, tableId, columnName } = req.params;
     const { newName, newType } = req.body;
@@ -357,7 +359,7 @@ app.put('/api/admin/projects/:projectId/tables/:tableId/columns/:columnName', as
   }
 });
 
-app.delete('/api/admin/projects/:projectId/tables/:tableId/columns/:columnName', async (req, res) => {
+app.delete('/api/admin/projects/:projectId/tables/:tableId/columns/:columnName', validateAdminToken, async (req, res) => {
   try {
     const { projectId, tableId, columnName } = req.params;
 
@@ -395,6 +397,109 @@ app.delete('/api/admin/projects/:projectId/tables/:tableId/columns/:columnName',
     res.json(updated);
   } catch (error) {
     console.error('Delete column error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.get('/api/admin/projects/:projectId/tables/:tableId/rows', validateAdminToken, async (req, res) => {
+  try {
+    const { projectId, tableId } = req.params;
+
+    const [table] = await db.select().from(schema.tables)
+      .where(and(eq(schema.tables.projectId, projectId), eq(schema.tables.id, tableId)));
+    
+    if (!table) {
+      return res.status(404).json({ error: 'Таблица не найдена' });
+    }
+
+    res.json(table.rows || []);
+  } catch (error) {
+    console.error('Get rows error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.post('/api/admin/projects/:projectId/tables/:tableId/rows', validateAdminToken, async (req, res) => {
+  try {
+    const { projectId, tableId } = req.params;
+
+    const [table] = await db.select().from(schema.tables)
+      .where(and(eq(schema.tables.projectId, projectId), eq(schema.tables.id, tableId)));
+    
+    if (!table) {
+      return res.status(404).json({ error: 'Таблица не найдена' });
+    }
+
+    const newRow = { id: uuidv4(), ...req.body };
+    const rows = [...(table.rows || []), newRow];
+
+    await db.update(schema.tables)
+      .set({ rows })
+      .where(eq(schema.tables.id, table.id));
+
+    res.json(newRow);
+  } catch (error) {
+    console.error('Insert row error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.put('/api/admin/projects/:projectId/tables/:tableId/rows/:rowId', validateAdminToken, async (req, res) => {
+  try {
+    const { projectId, tableId, rowId } = req.params;
+
+    const [table] = await db.select().from(schema.tables)
+      .where(and(eq(schema.tables.projectId, projectId), eq(schema.tables.id, tableId)));
+    
+    if (!table) {
+      return res.status(404).json({ error: 'Таблица не найдена' });
+    }
+
+    let rows = table.rows || [];
+    const rowIndex = rows.findIndex(r => r.id === rowId);
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Запись не найдена' });
+    }
+
+    rows[rowIndex] = { ...rows[rowIndex], ...req.body };
+
+    await db.update(schema.tables)
+      .set({ rows })
+      .where(eq(schema.tables.id, table.id));
+
+    res.json(rows[rowIndex]);
+  } catch (error) {
+    console.error('Update row error:', error);
+    res.status(500).json({ error: 'Ошибка сервера' });
+  }
+});
+
+app.delete('/api/admin/projects/:projectId/tables/:tableId/rows/:rowId', validateAdminToken, async (req, res) => {
+  try {
+    const { projectId, tableId, rowId } = req.params;
+
+    const [table] = await db.select().from(schema.tables)
+      .where(and(eq(schema.tables.projectId, projectId), eq(schema.tables.id, tableId)));
+    
+    if (!table) {
+      return res.status(404).json({ error: 'Таблица не найдена' });
+    }
+
+    let rows = table.rows || [];
+    const rowIndex = rows.findIndex(r => r.id === rowId);
+    if (rowIndex === -1) {
+      return res.status(404).json({ error: 'Запись не найдена' });
+    }
+
+    rows.splice(rowIndex, 1);
+
+    await db.update(schema.tables)
+      .set({ rows })
+      .where(eq(schema.tables.id, table.id));
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Delete row error:', error);
     res.status(500).json({ error: 'Ошибка сервера' });
   }
 });
@@ -502,7 +607,7 @@ app.delete('/api/projects/:projectId/:tableName/:rowId', validateApiKey, async (
   }
 });
 
-app.get('/api/admin/projects/:projectId/auth/users', async (req, res) => {
+app.get('/api/admin/projects/:projectId/auth/users', validateAdminToken, async (req, res) => {
   try {
     const { projectId } = req.params;
 
@@ -524,7 +629,7 @@ app.get('/api/admin/projects/:projectId/auth/users', async (req, res) => {
   }
 });
 
-app.post('/api/admin/projects/:projectId/auth/users', async (req, res) => {
+app.post('/api/admin/projects/:projectId/auth/users', validateAdminToken, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { email, password } = req.body;
@@ -556,7 +661,7 @@ app.post('/api/admin/projects/:projectId/auth/users', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/projects/:projectId/auth/users/:userId', async (req, res) => {
+app.delete('/api/admin/projects/:projectId/auth/users/:userId', validateAdminToken, async (req, res) => {
   try {
     const { projectId, userId } = req.params;
 
@@ -630,7 +735,7 @@ app.post('/api/projects/:projectId/auth/login', validateApiKey, async (req, res)
   }
 });
 
-app.get('/api/admin/projects/:projectId/storage/buckets', async (req, res) => {
+app.get('/api/admin/projects/:projectId/storage/buckets', validateAdminToken, async (req, res) => {
   try {
     const { projectId } = req.params;
 
@@ -647,7 +752,7 @@ app.get('/api/admin/projects/:projectId/storage/buckets', async (req, res) => {
   }
 });
 
-app.post('/api/admin/projects/:projectId/storage/buckets', async (req, res) => {
+app.post('/api/admin/projects/:projectId/storage/buckets', validateAdminToken, async (req, res) => {
   try {
     const { projectId } = req.params;
     const { name, public: isPublic } = req.body;
@@ -679,7 +784,7 @@ app.post('/api/admin/projects/:projectId/storage/buckets', async (req, res) => {
   }
 });
 
-app.delete('/api/admin/projects/:projectId/storage/buckets/:bucketName', async (req, res) => {
+app.delete('/api/admin/projects/:projectId/storage/buckets/:bucketName', validateAdminToken, async (req, res) => {
   try {
     const { projectId, bucketName } = req.params;
 
@@ -690,7 +795,9 @@ app.delete('/api/admin/projects/:projectId/storage/buckets/:bucketName', async (
       return res.status(404).json({ error: 'Bucket не найден' });
     }
 
+    await db.delete(schema.files).where(eq(schema.files.bucketId, bucket.id));
     await db.delete(schema.buckets).where(eq(schema.buckets.id, bucket.id));
+    
     res.json({ success: true });
   } catch (error) {
     console.error('Delete bucket error:', error);
@@ -698,7 +805,7 @@ app.delete('/api/admin/projects/:projectId/storage/buckets/:bucketName', async (
   }
 });
 
-app.get('/api/admin/projects/:projectId/storage/buckets/:bucketName/files', async (req, res) => {
+app.get('/api/admin/projects/:projectId/storage/buckets/:bucketName/files', validateAdminToken, async (req, res) => {
   try {
     const { projectId, bucketName } = req.params;
 
