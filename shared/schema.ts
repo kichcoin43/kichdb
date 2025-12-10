@@ -10,7 +10,8 @@ export const machines = pgTable("machines", {
 
 export const projects = pgTable("projects", {
   id: uuid("id").primaryKey().defaultRandom(),
-  machineId: uuid("machine_id").notNull().references(() => machines.id, { onDelete: "cascade" }),
+  machineId: uuid("machine_id"),
+  accountId: text("account_id").notNull().default('acc_1974'),
   name: text("name").notNull(),
   created: timestamp("created").defaultNow().notNull(),
   url: text("url"),

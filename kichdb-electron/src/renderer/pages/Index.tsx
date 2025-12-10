@@ -22,8 +22,12 @@ import {
   Check,
   X,
   ChevronRight,
-  Lock
+  Lock,
+  Filter,
+  ArrowUpDown
 } from 'lucide-react'
+
+const logoImage = '/logo.png'
 
 interface Project {
   id: string
@@ -69,6 +73,8 @@ interface StorageFile {
 
 export default function Index() {
   const [adminToken, setAdminToken] = useState<string | null>(null)
+  const [accountId, setAccountId] = useState<string | null>(null)
+  const [accountName, setAccountName] = useState<string | null>(null)
   const [password, setPassword] = useState('')
   const [authError, setAuthError] = useState('')
   const [authLoading, setAuthLoading] = useState(false)
@@ -114,7 +120,10 @@ export default function Index() {
         headers: { 'X-Admin-Token': token }
       });
       if (response.ok) {
+        const data = await response.json();
         setAdminToken(token);
+        setAccountId(data.accountId);
+        setAccountName(data.accountName);
         loadProjects(token);
       } else {
         localStorage.removeItem("adminToken");
@@ -146,6 +155,8 @@ export default function Index() {
       if (data.token) {
         localStorage.setItem("adminToken", data.token);
         setAdminToken(data.token);
+        setAccountId(data.accountId);
+        setAccountName(data.accountName);
         loadProjects(data.token);
       } else {
         setAuthError("Ошибка авторизации");
@@ -167,6 +178,8 @@ export default function Index() {
     
     localStorage.removeItem('adminToken')
     setAdminToken(null)
+    setAccountId(null)
+    setAccountName(null)
     setProjects([])
     setCurrentProject(null)
     setPassword('')
@@ -557,17 +570,15 @@ export default function Index() {
 
   if (!adminToken) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center p-4">
-        <Card className="w-full max-w-md">
+      <div className="min-h-screen bg-[#1c1c1c] flex items-center justify-center p-4">
+        <Card className="w-full max-w-md bg-[#2a2a2a] border-[#3a3a3a]">
           <CardHeader className="text-center">
             <div className="flex justify-center mb-4">
-              <div className="p-3 bg-primary/10 rounded-xl">
-                <Lock className="w-10 h-10 text-primary" />
-              </div>
+              <img src={logoImage} alt="KICH DB" className="w-24 h-24 object-contain" />
             </div>
-            <CardTitle className="text-2xl">KICH DB</CardTitle>
-            <CardDescription>
-              Введите пароль для доступа
+            <CardTitle className="text-2xl text-white">KICH DB</CardTitle>
+            <CardDescription className="text-gray-400">
+              Введите пароль для доступа к аккаунту
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -575,17 +586,18 @@ export default function Index() {
               <div>
                 <Input
                   type="password"
-                  placeholder="Пароль"
+                  placeholder="Пароль (Nokici1974-1980)"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoFocus
+                  className="bg-[#1c1c1c] border-[#3a3a3a] text-white placeholder:text-gray-500"
                 />
               </div>
               {authError && (
-                <p className="text-sm text-destructive">{authError}</p>
+                <p className="text-sm text-red-400">{authError}</p>
               )}
-              <Button type="submit" className="w-full" disabled={authLoading}>
+              <Button type="submit" className="w-full bg-[#3ecf8e] hover:bg-[#36b77d] text-black font-medium" disabled={authLoading}>
                 {authLoading ? 'Проверка...' : 'Войти'}
               </Button>
             </form>
@@ -597,27 +609,25 @@ export default function Index() {
 
   if (!currentProject) {
     return (
-      <div className="min-h-screen bg-background p-6">
+      <div className="min-h-screen bg-[#1c1c1c] p-6">
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div className="flex items-center gap-3">
-              <div className="p-2 bg-primary/10 rounded-lg">
-                <Database className="w-8 h-8 text-primary" />
-              </div>
+              <img src={logoImage} alt="KICH DB" className="w-12 h-12 object-contain" />
               <div>
-                <h1 className="text-2xl font-bold">KICH DB</h1>
-                <p className="text-sm text-muted-foreground">Панель управления базой данных</p>
+                <h1 className="text-2xl font-bold text-white">KICH DB</h1>
+                <p className="text-sm text-gray-400">Аккаунт: {accountName || 'Unknown'}</p>
               </div>
             </div>
-            <Button variant="ghost" onClick={handleLogout}>
+            <Button variant="ghost" onClick={handleLogout} className="text-gray-300 hover:text-white hover:bg-[#3a3a3a]">
               <LogOut className="w-4 h-4 mr-2" />
               Выйти
             </Button>
           </div>
 
-          <Card className="mb-6">
+          <Card className="mb-6 bg-[#2a2a2a] border-[#3a3a3a]">
             <CardHeader>
-              <CardTitle>Создать проект</CardTitle>
+              <CardTitle className="text-white">Создать проект</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex gap-2">
@@ -626,8 +636,9 @@ export default function Index() {
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && createProject()}
+                  className="bg-[#1c1c1c] border-[#3a3a3a] text-white placeholder:text-gray-500"
                 />
-                <Button onClick={createProject} disabled={loading}>
+                <Button onClick={createProject} disabled={loading} className="bg-[#3ecf8e] hover:bg-[#36b77d] text-black">
                   <Plus className="w-4 h-4 mr-2" />
                   Создать
                 </Button>
@@ -637,30 +648,30 @@ export default function Index() {
 
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
-              <Card key={project.id} className="cursor-pointer hover:border-primary/50 transition-colors">
+              <Card key={project.id} className="cursor-pointer hover:border-[#3ecf8e]/50 transition-colors bg-[#2a2a2a] border-[#3a3a3a]">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg">{project.name}</CardTitle>
+                    <CardTitle className="text-lg text-white">{project.name}</CardTitle>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8"
+                      className="h-8 w-8 hover:bg-[#3a3a3a]"
                       onClick={(e) => {
                         e.stopPropagation()
                         deleteProject(project.id)
                       }}
                     >
-                      <Trash2 className="w-4 h-4 text-destructive" />
+                      <Trash2 className="w-4 h-4 text-red-400" />
                     </Button>
                   </div>
-                  <CardDescription>
+                  <CardDescription className="text-gray-400">
                     Создан: {project.created ? new Date(project.created).toLocaleDateString('ru-RU') : 'Неизвестно'}
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   <div className="flex items-center justify-between">
-                    <Badge variant="secondary">{project.status}</Badge>
-                    <Button size="sm" onClick={() => selectProject(project)}>
+                    <Badge className="bg-[#3ecf8e]/20 text-[#3ecf8e] border-0">{project.status}</Badge>
+                    <Button size="sm" onClick={() => selectProject(project)} className="bg-[#3a3a3a] hover:bg-[#4a4a4a] text-white">
                       Открыть
                     </Button>
                   </div>
@@ -670,7 +681,7 @@ export default function Index() {
           </div>
 
           {projects.length === 0 && !loading && (
-            <div className="text-center py-12 text-muted-foreground">
+            <div className="text-center py-12 text-gray-400">
               <HardDrive className="w-12 h-12 mx-auto mb-4 opacity-50" />
               <p>Нет проектов. Создайте первый проект!</p>
             </div>
@@ -681,19 +692,20 @@ export default function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="border-b bg-card">
-        <div className="flex items-center justify-between px-6 py-4">
+    <div className="min-h-screen bg-[#1c1c1c]">
+      <header className="border-b border-[#3a3a3a] bg-[#2a2a2a]">
+        <div className="flex items-center justify-between px-6 py-3">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" size="sm" onClick={() => setCurrentProject(null)}>
-              <Database className="w-4 h-4 mr-2" />
+            <Button variant="ghost" size="sm" onClick={() => setCurrentProject(null)} className="text-gray-300 hover:text-white hover:bg-[#3a3a3a]">
+              <img src={logoImage} alt="KICH DB" className="w-6 h-6 mr-2" />
               Все проекты
             </Button>
-            <span className="text-muted-foreground">/</span>
-            <span className="font-medium">{currentProject.name}</span>
+            <span className="text-gray-500">/</span>
+            <span className="font-medium text-white">{currentProject.name}</span>
+            <Badge className="bg-[#3ecf8e]/20 text-[#3ecf8e] border-0 text-xs">{accountName}</Badge>
           </div>
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={handleLogout}>
+            <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-300 hover:text-white hover:bg-[#3a3a3a]">
               <LogOut className="w-4 h-4" />
             </Button>
           </div>
@@ -701,78 +713,78 @@ export default function Index() {
       </header>
 
       <div className="flex">
-        <aside className="w-64 border-r min-h-[calc(100vh-73px)] bg-card p-4">
-          <nav className="space-y-2">
+        <aside className="w-56 border-r border-[#3a3a3a] min-h-[calc(100vh-57px)] bg-[#1c1c1c] p-3">
+          <nav className="space-y-1">
             <Button
-              variant={activeTab === 'dashboard' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
+              variant="ghost"
+              className={`w-full justify-start text-sm ${activeTab === 'dashboard' ? 'bg-[#3a3a3a] text-white' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
               onClick={() => setActiveTab('dashboard')}
             >
               <HardDrive className="w-4 h-4 mr-2" />
               Обзор
             </Button>
             <Button
-              variant={activeTab === 'tables' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
+              variant="ghost"
+              className={`w-full justify-start text-sm ${activeTab === 'tables' ? 'bg-[#3a3a3a] text-white' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
               onClick={() => setActiveTab('tables')}
             >
               <TableIcon className="w-4 h-4 mr-2" />
-              Таблицы
+              Table Editor
             </Button>
             <Button
-              variant={activeTab === 'storage' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
+              variant="ghost"
+              className={`w-full justify-start text-sm ${activeTab === 'storage' ? 'bg-[#3a3a3a] text-white' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
               onClick={() => setActiveTab('storage')}
             >
               <FolderOpen className="w-4 h-4 mr-2" />
-              Хранилище
+              Storage
             </Button>
             <Button
-              variant={activeTab === 'auth' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
+              variant="ghost"
+              className={`w-full justify-start text-sm ${activeTab === 'auth' ? 'bg-[#3a3a3a] text-white' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
               onClick={() => setActiveTab('auth')}
             >
               <Users className="w-4 h-4 mr-2" />
-              Пользователи
+              Authentication
             </Button>
             <Button
-              variant={activeTab === 'api' ? 'secondary' : 'ghost'}
-              className="w-full justify-start"
+              variant="ghost"
+              className={`w-full justify-start text-sm ${activeTab === 'api' ? 'bg-[#3a3a3a] text-white' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
               onClick={() => setActiveTab('api')}
             >
               <Key className="w-4 h-4 mr-2" />
-              API Ключи
+              API Keys
             </Button>
           </nav>
         </aside>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 bg-[#1c1c1c]">
           {activeTab === 'dashboard' && (
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold">Обзор проекта</h2>
+              <h2 className="text-2xl font-bold text-white">Project Overview</h2>
               <div className="grid gap-4 md:grid-cols-3">
-                <Card>
+                <Card className="bg-[#2a2a2a] border-[#3a3a3a]">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Таблицы</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-400">Tables</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{tables.length}</div>
+                    <div className="text-2xl font-bold text-white">{tables.length}</div>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-[#2a2a2a] border-[#3a3a3a]">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Пользователи</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-400">Auth Users</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{authUsers.length}</div>
+                    <div className="text-2xl font-bold text-white">{authUsers.length}</div>
                   </CardContent>
                 </Card>
-                <Card>
+                <Card className="bg-[#2a2a2a] border-[#3a3a3a]">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">Buckets</CardTitle>
+                    <CardTitle className="text-sm font-medium text-gray-400">Storage Buckets</CardTitle>
                   </CardHeader>
                   <CardContent>
-                    <div className="text-2xl font-bold">{buckets.length}</div>
+                    <div className="text-2xl font-bold text-white">{buckets.length}</div>
                   </CardContent>
                 </Card>
               </div>

@@ -26,7 +26,17 @@ const db = drizzle(pool, { schema });
 const app = express();
 const PORT = process.env.PORT || 3030;
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'Nokici1974';
+const ADMIN_ACCOUNTS = {
+  'Nokici1974': { id: 'acc_1974', name: 'Account 1974' },
+  'Nokici1975': { id: 'acc_1975', name: 'Account 1975' },
+  'Nokici1976': { id: 'acc_1976', name: 'Account 1976' },
+  'Nokici1977': { id: 'acc_1977', name: 'Account 1977' },
+  'Nokici1978': { id: 'acc_1978', name: 'Account 1978' },
+  'Nokici1979': { id: 'acc_1979', name: 'Account 1979' },
+  'Nokici1980': { id: 'acc_1980', name: 'Account 1980' },
+};
+
+const adminTokens = new Map();
 
 app.use(cors({
   origin: '*',
@@ -44,8 +54,6 @@ function generateAdminToken() {
   return 'admin_' + uuidv4().replace(/-/g, '');
 }
 
-const adminTokens = new Set();
-
 function validateAdminToken(req, res, next) {
   const token = req.headers['x-admin-token'] || req.headers['authorization']?.replace('Bearer ', '');
   
@@ -53,6 +61,8 @@ function validateAdminToken(req, res, next) {
     return res.status(401).json({ error: 'Требуется авторизация администратора' });
   }
   
+  req.accountId = adminTokens.get(token).accountId;
+  req.accountName = adminTokens.get(token).accountName;
   next();
 }
 
@@ -96,15 +106,18 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(400).json({ error: 'Пароль обязателен' });
     }
 
-    if (password !== ADMIN_PASSWORD) {
+    const account = ADMIN_ACCOUNTS[password];
+    if (!account) {
       return res.status(401).json({ error: 'Неверный пароль' });
     }
 
     const token = generateAdminToken();
-    adminTokens.add(token);
+    adminTokens.set(token, { accountId: account.id, accountName: account.name });
 
     res.json({
       token,
+      accountId: account.id,
+      accountName: account.name,
       message: 'Успешный вход'
     });
   } catch (error) {
@@ -124,7 +137,8 @@ app.post('/api/auth/logout', (req, res) => {
 app.get('/api/auth/verify', (req, res) => {
   const token = req.headers['x-admin-token'];
   if (token && adminTokens.has(token)) {
-    res.json({ valid: true });
+    const account = adminTokens.get(token);
+    res.json({ valid: true, accountId: account.accountId, accountName: account.accountName });
   } else {
     res.status(401).json({ valid: false });
   }
@@ -132,7 +146,7 @@ app.get('/api/auth/verify', (req, res) => {
 
 app.get('/api/admin/projects', validateAdminToken, async (req, res) => {
   try {
-    const projectsList = await db.select().from(schema.projects);
+    const projectsList = await db.select().from(schema.projects).where(eq(schema.projects.accountId, req.accountId));
     const result = projectsList.map(p => ({
       id: p.id,
       name: p.name,
@@ -160,7 +174,7 @@ app.post('/api/admin/projects', validateAdminToken, async (req, res) => {
     const serviceKey = generateApiKey('sk_service');
 
     const [project] = await db.insert(schema.projects).values({
-      machineId: '00000000-0000-0000-0000-000000000000',
+      accountId: req.accountId,
       name,
       url: `${baseUrl}/api/projects/${uuidv4()}`,
       status: 'active',
@@ -188,7 +202,7 @@ app.delete('/api/admin/projects/:id', validateAdminToken, async (req, res) => {
   try {
     const { id } = req.params;
 
-    const [project] = await db.select().from(schema.projects).where(eq(schema.projects.id, id));
+    const [project] = await db.select().from(schema.projects).where(and(eq(schema.projects.id, id), eq(schema.projects.accountId, req.accountId)));
     
     if (!project) {
       return res.status(404).json({ error: 'Проект не найден' });
