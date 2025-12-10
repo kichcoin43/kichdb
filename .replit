@@ -42,5 +42,9 @@ args = "node server/index.js & cd kichdb-electron && npm run dev:renderer"
 waitForPort = 5000
 
 [[ports]]
+localPort = 3030
+externalPort = 3000
+
+[[ports]]
 localPort = 5000
 externalPort = 5000
