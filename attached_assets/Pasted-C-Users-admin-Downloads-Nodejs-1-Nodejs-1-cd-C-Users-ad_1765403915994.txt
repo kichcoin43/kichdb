@@ -1,0 +1,107 @@
+C:\Users\admin\Downloads\Nodejs-1\Nodejs-1>cd C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron
+
+C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron>npm run db:push
+
+> kichdb@1.0.0 db:push
+> cd .. && npm run db:push
+
+
+> kichdb@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file 'C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+Error: getaddrinfo ENOTFOUND db.ptfuqgpoawmjmyfblwyn.supabase.co
+    at C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.query (C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\node_modules\drizzle-kit\bin.cjs:80622:26)
+    at async fromDatabase2 (C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\node_modules\drizzle-kit\bin.cjs:19276:25) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'db.ptfuqgpoawmjmyfblwyn.supabase.co'
+}
+
+C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron>npm install
+npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+npm warn deprecated glob@7.2.3: Glob versions prior to v9 are no longer supported
+npm warn deprecated boolean@3.2.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+npm warn deprecated node-domexception@1.0.0: Use your platform's native DOMException instead
+
+added 600 packages, and audited 601 packages in 34s
+
+93 packages are looking for funding
+  run `npm fund` for details
+
+3 moderate severity vulnerabilities
+
+To address all issues (including breaking changes), run:
+  npm audit fix --force
+
+Run `npm audit` for details.
+
+C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron>npm run dist:win
+
+> kichdb@1.0.0 dist:win
+> npm run build && electron-builder --win
+
+
+> kichdb@1.0.0 build
+> npm run build:renderer && npm run build:main
+
+
+> kichdb@1.0.0 build:renderer
+> vite build
+
+The CJS build of Vite's Node API is deprecated. See https://vite.dev/guide/troubleshooting.html#vite-cjs-node-api-deprecated for more details.
+vite v5.4.21 building for production...
+transforming (1) index.html(node:34972) [MODULE_TYPELESS_PACKAGE_JSON] Warning: Module type of file:///C:/Users/admin/Downloads/Nodejs-1/Nodejs-1/kichdb-electron/postcss.config.js is not specified and it doesn't parse as CommonJS.
+Reparsing as ES module because module syntax was detected. This incurs a performance overhead.
+To eliminate this warning, add "type": "module" to C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron\package.json.
+(Use `node --trace-warnings ...` to show where the warning was created)
+✓ 1576 modules transformed.
+../../dist/renderer/index.html                   0.60 kB │ gzip:  0.36 kB
+../../dist/renderer/assets/index-ByFK34Sr.css   16.36 kB │ gzip:  4.05 kB
+../../dist/renderer/assets/index-IDw4ET3l.js   225.18 kB │ gzip: 69.05 kB
+✓ built in 3.04s
+
+> kichdb@1.0.0 build:main
+> tsc -p tsconfig.main.json
+
+  • electron-builder  version=24.13.3 os=10.0.26200
+  • loaded configuration  file=package.json ("build" field)
+  • author is missed in the package.json  appPackageFile=C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron\package.json
+  • writing effective config  file=release\builder-effective-config.yaml
+  • packaging       platform=win32 arch=x64 electron=32.3.3 appOutDir=release\win-unpacked
+  • default Electron icon is used  reason=application icon is not set
+  • building        target=portable file=release\KICHDB-1.0.0-portable.exe archs=x64
+  • building        target=nsis file=release\KICH DB Setup 1.0.0.exe archs=x64 oneClick=false perMachine=false
+  • building block map  blockMapFile=release\KICH DB Setup 1.0.0.exe.blockmap
+
+C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron>npm run db:push
+
+> kichdb@1.0.0 db:push
+> cd .. && npm run db:push
+
+
+> kichdb@1.0.0 db:push
+> drizzle-kit push
+
+No config path provided, using default 'drizzle.config.ts'
+Reading config file 'C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\drizzle.config.ts'
+Using 'pg' driver for database querying
+[⣷] Pulling schema from database...
+Error: getaddrinfo ENOTFOUND db.ptfuqgpoawmjmyfblwyn.supabase.co
+    at C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\node_modules\pg-pool\index.js:45:11
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async Object.query (C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\node_modules\drizzle-kit\bin.cjs:80622:26)
+    at async fromDatabase2 (C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\node_modules\drizzle-kit\bin.cjs:19276:25) {
+  errno: -3008,
+  code: 'ENOTFOUND',
+  syscall: 'getaddrinfo',
+  hostname: 'db.ptfuqgpoawmjmyfblwyn.supabase.co'
+}
+
+C:\Users\admin\Downloads\Nodejs-1\Nodejs-1\kichdb-electron>
