@@ -16,18 +16,19 @@ import {
   Users,
   TableIcon,
   LogOut,
-  HardDrive,
   Pencil,
   Check,
   X,
   ChevronRight,
-  ChevronDown,
   Filter,
   ArrowUpDown,
-  MoreVertical,
   Search,
   Settings,
-  Shield
+  Shield,
+  Columns,
+  Rows,
+  Zap,
+  Globe
 } from 'lucide-react'
 
 const logoImage = '/logo.png'
@@ -86,7 +87,7 @@ export default function Index() {
   const [currentProject, setCurrentProject] = useState<Project | null>(null)
   const [tables, setTables] = useState<TableData[]>([])
   const [apiKeys, setApiKeys] = useState<ApiKeys | null>(null)
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'tables' | 'storage' | 'auth' | 'api'>('tables')
+  const [activeTab, setActiveTab] = useState<'tables' | 'storage' | 'auth' | 'api'>('tables')
   const [loading, setLoading] = useState(false)
   const [showApiKey, setShowApiKey] = useState<Record<string, boolean>>({})
   const [copied, setCopied] = useState<string | null>(null)
@@ -106,6 +107,7 @@ export default function Index() {
   const [editColumnName, setEditColumnName] = useState('')
   const [editColumnType, setEditColumnType] = useState('')
   const [showNewTableInput, setShowNewTableInput] = useState(false)
+  const [showAddColumn, setShowAddColumn] = useState(false)
 
   const [newRowData, setNewRowData] = useState<Record<string, string>>({})
   const [editingRow, setEditingRow] = useState<string | null>(null)
@@ -227,7 +229,7 @@ export default function Index() {
       setProjects([...projects, { ...data.project, apiKeys: data.apiKeys }])
       setNewProjectName('')
     } catch (error) {
-      console.error('Error creating project:', error)
+      console.error('Ошибка создания проекта:', error)
     } finally {
       setLoading(false)
     }
@@ -245,7 +247,7 @@ export default function Index() {
         setCurrentProject(null)
       }
     } catch (error) {
-      console.error('Error deleting project:', error)
+      console.error('Ошибка удаления проекта:', error)
     }
   }
 
@@ -297,7 +299,7 @@ export default function Index() {
       setShowNewTableInput(false)
       setSelectedTable(data)
     } catch (error) {
-      console.error('Error creating table:', error)
+      console.error('Ошибка создания таблицы:', error)
     } finally {
       setLoading(false)
     }
@@ -317,13 +319,14 @@ export default function Index() {
         setSelectedTable(newTables[0] || null)
       }
     } catch (error) {
-      console.error('Error deleting table:', error)
+      console.error('Ошибка удаления таблицы:', error)
     }
   }
 
   const addColumn = async () => {
     if (!newColumnName.trim() || !currentProject || !selectedTable) return
     try {
+      setLoading(true)
       await fetch(apiUrl(`/admin/projects/${currentProject.id}/tables/${selectedTable.id}/columns`), {
         method: 'POST',
         headers: { 
@@ -339,8 +342,12 @@ export default function Index() {
       const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
       if (updated) setSelectedTable(updated)
       setNewColumnName('')
+      setNewColumnType('text')
+      setShowAddColumn(false)
     } catch (error) {
-      console.error('Error adding column:', error)
+      console.error('Ошибка добавления колонки:', error)
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -366,7 +373,7 @@ export default function Index() {
       if (updated) setSelectedTable(updated)
       setEditingColumn(null)
     } catch (error) {
-      console.error('Error updating column:', error)
+      console.error('Ошибка обновления колонки:', error)
     }
   }
 
@@ -385,7 +392,7 @@ export default function Index() {
       const updated = updatedTables.find((t: TableData) => t.id === selectedTable.id)
       if (updated) setSelectedTable(updated)
     } catch (error) {
-      console.error('Error deleting column:', error)
+      console.error('Ошибка удаления колонки:', error)
     }
   }
 
@@ -413,7 +420,7 @@ export default function Index() {
       setNewRowData({})
       setShowInsertRow(false)
     } catch (error) {
-      console.error('Error adding row:', error)
+      console.error('Ошибка добавления записи:', error)
     }
   }
 
@@ -437,7 +444,7 @@ export default function Index() {
       setEditingRow(null)
       setEditRowData({})
     } catch (error) {
-      console.error('Error updating row:', error)
+      console.error('Ошибка обновления записи:', error)
     }
   }
 
@@ -454,7 +461,7 @@ export default function Index() {
       setSelectedTable(updatedTable)
       setTables(tables.map(t => t.id === selectedTable.id ? updatedTable : t))
     } catch (error) {
-      console.error('Error deleting row:', error)
+      console.error('Ошибка удаления записи:', error)
     }
   }
 
@@ -485,7 +492,7 @@ export default function Index() {
       })
       setAuthUsers(authUsers.filter(u => u.id !== userId))
     } catch (error) {
-      console.error('Error deleting user:', error)
+      console.error('Ошибка удаления пользователя:', error)
     }
   }
 
@@ -523,7 +530,7 @@ export default function Index() {
       setNewBucketName('')
       setNewBucketPublic(false)
     } catch (error) {
-      console.error('Error creating bucket:', error)
+      console.error('Ошибка создания bucket:', error)
     } finally {
       setLoading(false)
     }
@@ -543,7 +550,7 @@ export default function Index() {
         setBucketFiles([])
       }
     } catch (error) {
-      console.error('Error deleting bucket:', error)
+      console.error('Ошибка удаления bucket:', error)
     }
   }
 
@@ -583,11 +590,11 @@ export default function Index() {
       case 'int': case 'int4': case 'int8': case 'integer': case 'float8': case 'numeric':
         return 'text-blue-400'
       case 'text': case 'varchar': case 'char':
-        return 'text-green-400'
+        return 'text-emerald-400'
       case 'boolean': case 'bool':
         return 'text-purple-400'
       case 'timestamp': case 'timestamptz': case 'date': case 'time':
-        return 'text-yellow-400'
+        return 'text-amber-400'
       case 'json': case 'jsonb':
         return 'text-orange-400'
       case 'uuid':
@@ -599,35 +606,45 @@ export default function Index() {
 
   if (!adminToken) {
     return (
-      <div className="min-h-screen bg-[#171717] flex items-center justify-center p-4">
-        <Card className="w-full max-w-md bg-[#1f1f1f] border-[#2a2a2a] shadow-2xl">
-          <CardHeader className="text-center pb-2">
-            <div className="flex justify-center mb-6">
-              <img src={logoImage} alt="KICH DB" className="w-32 h-32 object-contain" />
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0d1117] flex items-center justify-center p-4">
+        <div className="absolute inset-0 opacity-20" style={{backgroundImage: 'radial-gradient(circle at 25% 25%, rgba(62, 207, 142, 0.1) 0%, transparent 50%), radial-gradient(circle at 75% 75%, rgba(6, 182, 212, 0.1) 0%, transparent 50%)'}}></div>
+        <Card className="w-full max-w-lg bg-[#161616]/90 backdrop-blur-xl border-[#2a2a2a] shadow-2xl relative z-10">
+          <CardHeader className="text-center pb-4 pt-8">
+            <div className="flex justify-center mb-8">
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-emerald-500/20 rounded-full blur-xl animate-pulse"></div>
+                <img src={logoImage} alt="KICH DB" className="w-48 h-48 object-contain relative z-10" />
+              </div>
             </div>
-            <CardTitle className="text-3xl font-bold text-white tracking-tight">KICH DB</CardTitle>
-            <CardDescription className="text-gray-500 mt-2">
-              Database Management System
+            <CardTitle className="text-4xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-cyan-400 to-emerald-400 tracking-tight">
+              KICH DB
+            </CardTitle>
+            <CardDescription className="text-gray-400 mt-3 text-lg">
+              Система управления базами данных
             </CardDescription>
           </CardHeader>
-          <CardContent className="pt-4">
-            <form onSubmit={handleLogin} className="space-y-4">
+          <CardContent className="pt-6 pb-8 px-8">
+            <form onSubmit={handleLogin} className="space-y-5">
               <div>
                 <Input
                   type="password"
-                  placeholder="Enter password"
+                  placeholder="Введите пароль"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoFocus
-                  className="h-11 bg-[#0d0d0d] border-[#2a2a2a] text-white placeholder:text-gray-600 focus:border-[#3ecf8e] focus:ring-[#3ecf8e]/20"
+                  className="h-14 text-lg bg-[#0d0d0d] border-[#2a2a2a] text-white placeholder:text-gray-500 focus:border-emerald-500 focus:ring-emerald-500/20 rounded-xl"
                 />
               </div>
               {authError && (
-                <p className="text-sm text-red-400 bg-red-400/10 px-3 py-2 rounded">{authError}</p>
+                <p className="text-sm text-red-400 bg-red-400/10 px-4 py-3 rounded-xl border border-red-400/20">{authError}</p>
               )}
-              <Button type="submit" className="w-full h-11 bg-[#3ecf8e] hover:bg-[#36b77d] text-black font-semibold text-base" disabled={authLoading}>
-                {authLoading ? 'Signing in...' : 'Sign In'}
+              <Button 
+                type="submit" 
+                className="w-full h-14 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-black font-bold text-lg rounded-xl shadow-lg shadow-emerald-500/25 transition-all hover:shadow-emerald-500/40" 
+                disabled={authLoading}
+              >
+                {authLoading ? 'Вход...' : 'Войти'}
               </Button>
             </form>
           </CardContent>
@@ -638,70 +655,79 @@ export default function Index() {
 
   if (!currentProject) {
     return (
-      <div className="min-h-screen bg-[#171717]">
-        <header className="border-b border-[#2a2a2a] bg-[#1f1f1f]">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div className="flex items-center gap-4">
-              <img src={logoImage} alt="KICH DB" className="w-10 h-10 object-contain" />
+      <div className="min-h-screen bg-gradient-to-br from-[#0a0a0a] via-[#111111] to-[#0d1117]">
+        <header className="border-b border-[#2a2a2a] bg-[#161616]/80 backdrop-blur-xl sticky top-0 z-50">
+          <div className="flex items-center justify-between px-8 py-4">
+            <div className="flex items-center gap-5">
+              <img src={logoImage} alt="KICH DB" className="w-14 h-14 object-contain" />
               <div>
-                <h1 className="text-xl font-bold text-white">KICH DB</h1>
-                <p className="text-xs text-gray-500">{accountName}</p>
+                <h1 className="text-2xl font-black text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">KICH DB</h1>
+                <p className="text-sm text-gray-500">{accountName}</p>
               </div>
             </div>
-            <Button variant="ghost" onClick={handleLogout} className="text-gray-400 hover:text-white hover:bg-[#2a2a2a]">
-              <LogOut className="w-4 h-4 mr-2" />
-              Sign Out
+            <Button variant="ghost" onClick={handleLogout} className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] gap-2">
+              <LogOut className="w-4 h-4" />
+              Выйти
             </Button>
           </div>
         </header>
 
-        <div className="max-w-6xl mx-auto p-8">
-          <div className="flex items-center justify-between mb-8">
-            <h2 className="text-2xl font-bold text-white">Projects</h2>
+        <div className="max-w-7xl mx-auto p-8">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h2 className="text-3xl font-bold text-white">Проекты</h2>
+              <p className="text-gray-500 mt-1">Управляйте вашими базами данных</p>
+            </div>
           </div>
 
-          <Card className="mb-8 bg-[#1f1f1f] border-[#2a2a2a]">
-            <CardContent className="pt-6">
-              <div className="flex gap-3">
+          <Card className="mb-10 bg-[#161616]/80 backdrop-blur-xl border-[#2a2a2a] overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/5 to-cyan-500/5"></div>
+            <CardContent className="pt-6 relative">
+              <div className="flex gap-4">
                 <Input
-                  placeholder="Project name"
+                  placeholder="Название нового проекта..."
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && createProject()}
-                  className="bg-[#0d0d0d] border-[#2a2a2a] text-white placeholder:text-gray-600"
+                  className="h-12 bg-[#0d0d0d] border-[#2a2a2a] text-white placeholder:text-gray-500 text-lg rounded-xl flex-1"
                 />
-                <Button onClick={createProject} disabled={loading} className="bg-[#3ecf8e] hover:bg-[#36b77d] text-black font-medium px-6">
-                  <Plus className="w-4 h-4 mr-2" />
-                  New Project
+                <Button 
+                  onClick={createProject} 
+                  disabled={loading} 
+                  className="h-12 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-black font-semibold px-8 rounded-xl shadow-lg"
+                >
+                  <Plus className="w-5 h-5 mr-2" />
+                  Создать проект
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {projects.map((project) => (
               <Card 
                 key={project.id} 
-                className="bg-[#1f1f1f] border-[#2a2a2a] hover:border-[#3ecf8e]/50 transition-all cursor-pointer group"
+                className="bg-[#161616]/80 backdrop-blur-xl border-[#2a2a2a] hover:border-emerald-500/50 transition-all cursor-pointer group overflow-hidden"
                 onClick={() => selectProject(project)}
               >
-                <CardHeader className="pb-3">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/0 to-cyan-500/0 group-hover:from-emerald-500/5 group-hover:to-cyan-500/5 transition-all"></div>
+                <CardHeader className="pb-4 relative">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-[#3ecf8e] to-[#1f8a5e] flex items-center justify-center">
-                        <Database className="w-5 h-5 text-white" />
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/25">
+                        <Database className="w-6 h-6 text-white" />
                       </div>
                       <div>
-                        <CardTitle className="text-white text-lg">{project.name}</CardTitle>
-                        <p className="text-xs text-gray-500 mt-0.5">
-                          {project.created ? new Date(project.created).toLocaleDateString() : 'Created'}
+                        <CardTitle className="text-white text-xl font-bold">{project.name}</CardTitle>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {project.created ? new Date(project.created).toLocaleDateString('ru-RU') : 'Создан'}
                         </p>
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
-                      className="opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500/10"
+                      className="opacity-0 group-hover:opacity-100 transition-all hover:bg-red-500/20"
                       onClick={(e) => {
                         e.stopPropagation()
                         deleteProject(project.id)
@@ -711,10 +737,16 @@ export default function Index() {
                     </Button>
                   </div>
                 </CardHeader>
-                <CardContent className="pt-0">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-[#3ecf8e]"></span>
-                    <span className="text-sm text-gray-400">{project.status || 'Active'}</span>
+                <CardContent className="pt-0 relative">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-500/10 rounded-full">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                      <span className="text-sm text-emerald-400 font-medium">Активен</span>
+                    </div>
+                    <div className="flex items-center gap-2 px-3 py-1.5 bg-[#2a2a2a] rounded-full">
+                      <Globe className="w-3 h-3 text-gray-400" />
+                      <span className="text-sm text-gray-400">API</span>
+                    </div>
                   </div>
                 </CardContent>
               </Card>
@@ -722,12 +754,12 @@ export default function Index() {
           </div>
 
           {projects.length === 0 && !loading && (
-            <div className="text-center py-16">
-              <div className="w-16 h-16 rounded-2xl bg-[#2a2a2a] flex items-center justify-center mx-auto mb-4">
-                <Database className="w-8 h-8 text-gray-500" />
+            <div className="text-center py-20">
+              <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-[#2a2a2a] to-[#1a1a1a] flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <Database className="w-12 h-12 text-gray-500" />
               </div>
-              <p className="text-gray-400 text-lg">No projects yet</p>
-              <p className="text-gray-600 text-sm mt-1">Create your first project to get started</p>
+              <p className="text-gray-300 text-xl font-medium">Пока нет проектов</p>
+              <p className="text-gray-500 mt-2">Создайте первый проект для начала работы</p>
             </div>
           )}
         </div>
@@ -736,98 +768,91 @@ export default function Index() {
   }
 
   return (
-    <div className="min-h-screen bg-[#171717] flex flex-col">
-      <header className="border-b border-[#2a2a2a] bg-[#1f1f1f] flex-shrink-0">
-        <div className="flex items-center justify-between px-4 py-2">
-          <div className="flex items-center gap-3">
-            <button onClick={() => setCurrentProject(null)} className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <img src={logoImage} alt="KICH DB" className="w-8 h-8 object-contain" />
+    <div className="min-h-screen bg-[#0a0a0a] flex flex-col">
+      <header className="border-b border-[#2a2a2a] bg-[#161616] flex-shrink-0">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-4">
+            <button onClick={() => setCurrentProject(null)} className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+              <img src={logoImage} alt="KICH DB" className="w-10 h-10 object-contain" />
+              <span className="text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400">KICH</span>
             </button>
             <span className="text-gray-600">/</span>
-            <span className="text-white font-medium">{currentProject.name}</span>
-            <ChevronDown className="w-4 h-4 text-gray-500" />
-            <span className="text-gray-600 mx-1">/</span>
-            <span className="text-gray-400">main</span>
-            <Badge className="ml-2 bg-[#3ecf8e]/20 text-[#3ecf8e] border-0 text-xs font-normal">PRODUCTION</Badge>
+            <span className="text-white font-medium text-lg">{currentProject.name}</span>
+            <Badge className="ml-2 bg-emerald-500/20 text-emerald-400 border-0 font-medium">PRODUCTION</Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] text-sm">
-              Feedback
-            </Button>
+          <div className="flex items-center gap-3">
+            <span className="text-sm text-gray-500">{accountName}</span>
             <Button variant="ghost" size="icon" onClick={handleLogout} className="text-gray-400 hover:text-white hover:bg-[#2a2a2a]">
-              <LogOut className="w-4 h-4" />
+              <LogOut className="w-5 h-5" />
             </Button>
           </div>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden">
-        <aside className="w-14 border-r border-[#2a2a2a] bg-[#1f1f1f] flex flex-col items-center py-4 gap-2 flex-shrink-0">
+        <aside className="w-16 border-r border-[#2a2a2a] bg-[#161616] flex flex-col items-center py-4 gap-3 flex-shrink-0">
           <button
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'tables' ? 'bg-[#2a2a2a] text-white' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]/50'}`}
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === 'tables' ? 'bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]'}`}
             onClick={() => setActiveTab('tables')}
-            title="Table Editor"
+            title="Редактор таблиц"
           >
             <TableIcon className="w-5 h-5" />
           </button>
           <button
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'auth' ? 'bg-[#2a2a2a] text-white' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]/50'}`}
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === 'auth' ? 'bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]'}`}
             onClick={() => setActiveTab('auth')}
-            title="Authentication"
+            title="Аутентификация"
           >
             <Users className="w-5 h-5" />
           </button>
           <button
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'storage' ? 'bg-[#2a2a2a] text-white' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]/50'}`}
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === 'storage' ? 'bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]'}`}
             onClick={() => setActiveTab('storage')}
-            title="Storage"
+            title="Хранилище"
           >
             <FolderOpen className="w-5 h-5" />
           </button>
           <button
-            className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${activeTab === 'api' ? 'bg-[#2a2a2a] text-white' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]/50'}`}
+            className={`w-11 h-11 rounded-xl flex items-center justify-center transition-all ${activeTab === 'api' ? 'bg-gradient-to-br from-emerald-500 to-cyan-500 text-white shadow-lg shadow-emerald-500/25' : 'text-gray-500 hover:text-white hover:bg-[#2a2a2a]'}`}
             onClick={() => setActiveTab('api')}
-            title="API Settings"
+            title="API Ключи"
           >
             <Key className="w-5 h-5" />
           </button>
           <div className="flex-1" />
-          <button
-            className="w-10 h-10 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-[#2a2a2a]/50 transition-colors"
-            title="Settings"
-          >
+          <button className="w-11 h-11 rounded-xl flex items-center justify-center text-gray-500 hover:text-white hover:bg-[#2a2a2a] transition-all" title="Настройки">
             <Settings className="w-5 h-5" />
           </button>
         </aside>
 
         {activeTab === 'tables' && (
           <>
-            <aside className="w-56 border-r border-[#2a2a2a] bg-[#1f1f1f] flex flex-col flex-shrink-0">
-              <div className="p-3 border-b border-[#2a2a2a]">
-                <div className="flex items-center gap-2 px-2 py-1.5 bg-[#0d0d0d] border border-[#2a2a2a] rounded text-sm text-gray-400">
+            <aside className="w-64 border-r border-[#2a2a2a] bg-[#161616] flex flex-col flex-shrink-0">
+              <div className="p-4 border-b border-[#2a2a2a]">
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-[#0d0d0d] border border-[#2a2a2a] rounded-xl text-sm text-gray-400">
                   <Search className="w-4 h-4" />
-                  <span>Search tables</span>
+                  <span>Поиск таблиц...</span>
                 </div>
               </div>
-              <div className="p-3 border-b border-[#2a2a2a]">
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-xs text-gray-500 uppercase tracking-wider">schema</span>
-                  <span className="text-xs text-gray-400">public</span>
+              <div className="p-4 border-b border-[#2a2a2a]">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-gray-500 uppercase tracking-wider font-medium">Схема</span>
+                  <Badge className="bg-[#2a2a2a] text-gray-300 border-0 text-xs">public</Badge>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto">
-                <div className="p-2">
+                <div className="p-3">
                   <button
                     onClick={() => setShowNewTableInput(true)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-400 hover:text-white hover:bg-[#2a2a2a] rounded transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 hover:from-emerald-500/20 hover:to-cyan-500/20 text-emerald-400 rounded-xl transition-all border border-emerald-500/20"
                   >
                     <Plus className="w-4 h-4" />
-                    New table
+                    Новая таблица
                   </button>
                   {showNewTableInput && (
-                    <div className="mt-2 px-2">
+                    <div className="mt-3">
                       <Input
-                        placeholder="table_name"
+                        placeholder="имя_таблицы"
                         value={newTableName}
                         onChange={(e) => setNewTableName(e.target.value)}
                         onKeyDown={(e) => {
@@ -835,29 +860,30 @@ export default function Index() {
                           if (e.key === 'Escape') setShowNewTableInput(false)
                         }}
                         autoFocus
-                        className="h-8 text-sm bg-[#0d0d0d] border-[#3ecf8e] text-white"
+                        className="h-10 text-sm bg-[#0d0d0d] border-emerald-500 text-white rounded-xl"
                       />
                     </div>
                   )}
                 </div>
-                <div className="px-2">
+                <div className="px-3 space-y-1">
                   {tables.map((table) => (
                     <div key={table.id} className="group relative">
                       <button
-                        className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded transition-colors ${selectedTable?.id === table.id ? 'bg-[#2a2a2a] text-white' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]/50'}`}
+                        className={`w-full flex items-center gap-3 px-4 py-3 text-sm rounded-xl transition-all ${selectedTable?.id === table.id ? 'bg-gradient-to-r from-emerald-500/20 to-cyan-500/20 text-white border border-emerald-500/30' : 'text-gray-400 hover:text-white hover:bg-[#2a2a2a]'}`}
                         onClick={() => setSelectedTable(table)}
                       >
                         <TableIcon className="w-4 h-4 flex-shrink-0" />
-                        <span className="truncate">{table.name}</span>
+                        <span className="truncate font-medium">{table.name}</span>
+                        <Badge className="ml-auto bg-[#2a2a2a] text-gray-400 border-0 text-xs">{table.rows.length}</Badge>
                       </button>
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
                           deleteTable(table.name)
                         }}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1 hover:bg-red-500/20 rounded transition-all"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-500/20 rounded-lg transition-all"
                       >
-                        <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                        <Trash2 className="w-4 h-4 text-red-400" />
                       </button>
                     </div>
                   ))}
@@ -865,63 +891,123 @@ export default function Index() {
               </div>
             </aside>
 
-            <main className="flex-1 flex flex-col overflow-hidden bg-[#171717]">
+            <main className="flex-1 flex flex-col overflow-hidden bg-[#0d0d0d]">
               {selectedTable ? (
                 <>
-                  <div className="flex items-center justify-between px-4 py-3 border-b border-[#2a2a2a] bg-[#1f1f1f]">
+                  <div className="flex items-center justify-between px-6 py-4 border-b border-[#2a2a2a] bg-[#161616]">
                     <div className="flex items-center gap-4">
-                      <div className="flex items-center gap-2">
-                        <TableIcon className="w-4 h-4 text-gray-400" />
-                        <span className="font-medium text-white">{selectedTable.name}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-emerald-500 to-cyan-500 flex items-center justify-center">
+                          <TableIcon className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="font-bold text-white text-lg">{selectedTable.name}</span>
                       </div>
-                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] h-8">
+                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] h-9 rounded-lg">
                         <Filter className="w-4 h-4 mr-2" />
-                        Filter
+                        Фильтр
                       </Button>
-                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] h-8">
+                      <Button variant="ghost" size="sm" className="text-gray-400 hover:text-white hover:bg-[#2a2a2a] h-9 rounded-lg">
                         <ArrowUpDown className="w-4 h-4 mr-2" />
-                        Sort
+                        Сортировка
                       </Button>
                     </div>
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                      <Button 
+                        size="sm"
+                        variant="outline"
+                        className="border-emerald-500/50 text-emerald-400 hover:bg-emerald-500/20 h-9 rounded-lg"
+                        onClick={() => setShowAddColumn(true)}
+                      >
+                        <Columns className="w-4 h-4 mr-2" />
+                        Добавить колонку
+                      </Button>
                       <Button 
                         size="sm" 
-                        className="bg-[#3ecf8e] hover:bg-[#36b77d] text-black font-medium h-8"
+                        className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-black font-semibold h-9 rounded-lg shadow-lg"
                         onClick={() => setShowInsertRow(true)}
                       >
-                        <Plus className="w-4 h-4 mr-1" />
-                        Insert
+                        <Rows className="w-4 h-4 mr-2" />
+                        Добавить запись
                       </Button>
-                      <div className="flex items-center gap-2 ml-4 px-3 py-1.5 bg-[#2a2a2a] rounded text-sm">
-                        <Shield className="w-4 h-4 text-gray-400" />
-                        <span className="text-gray-400">Role</span>
-                        <span className="text-white">postgres</span>
-                      </div>
                     </div>
                   </div>
 
+                  {showAddColumn && (
+                    <div className="border-b border-[#2a2a2a] bg-gradient-to-r from-emerald-500/5 to-cyan-500/5 p-6">
+                      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                        <Columns className="w-5 h-5 text-emerald-400" />
+                        Добавить новую колонку
+                      </h3>
+                      <div className="flex items-end gap-4">
+                        <div className="flex-1">
+                          <label className="text-sm text-gray-400 mb-2 block">Название колонки</label>
+                          <Input
+                            placeholder="имя_колонки"
+                            value={newColumnName}
+                            onChange={(e) => setNewColumnName(e.target.value)}
+                            className="h-11 bg-[#0d0d0d] border-[#2a2a2a] text-white rounded-xl"
+                          />
+                        </div>
+                        <div className="w-48">
+                          <label className="text-sm text-gray-400 mb-2 block">Тип данных</label>
+                          <select
+                            value={newColumnType}
+                            onChange={(e) => setNewColumnType(e.target.value)}
+                            className="w-full h-11 px-4 bg-[#0d0d0d] border border-[#2a2a2a] text-white rounded-xl focus:border-emerald-500 focus:ring-emerald-500/20"
+                          >
+                            <option value="text">text</option>
+                            <option value="integer">integer</option>
+                            <option value="float8">float8</option>
+                            <option value="boolean">boolean</option>
+                            <option value="timestamp">timestamp</option>
+                            <option value="uuid">uuid</option>
+                            <option value="json">json</option>
+                            <option value="jsonb">jsonb</option>
+                          </select>
+                        </div>
+                        <Button 
+                          onClick={addColumn} 
+                          disabled={loading || !newColumnName.trim()}
+                          className="h-11 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-black font-semibold px-6 rounded-xl"
+                        >
+                          <Plus className="w-4 h-4 mr-2" />
+                          Добавить
+                        </Button>
+                        <Button 
+                          variant="ghost" 
+                          onClick={() => { setShowAddColumn(false); setNewColumnName(''); setNewColumnType('text') }}
+                          className="h-11 text-gray-400 rounded-xl"
+                        >
+                          Отмена
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
                   {showInsertRow && (
-                    <div className="border-b border-[#2a2a2a] bg-[#1a1a1a] p-4">
-                      <div className="flex items-center gap-4 flex-wrap">
+                    <div className="border-b border-[#2a2a2a] bg-gradient-to-r from-cyan-500/5 to-emerald-500/5 p-6">
+                      <h3 className="text-white font-semibold mb-4 flex items-center gap-2">
+                        <Rows className="w-5 h-5 text-cyan-400" />
+                        Добавить новую запись
+                      </h3>
+                      <div className="flex items-end gap-4 flex-wrap">
                         {selectedTable.columns.filter(c => !c.primary).map((col) => (
-                          <div key={col.name} className="flex flex-col gap-1">
-                            <label className="text-xs text-gray-500">{col.name}</label>
+                          <div key={col.name} className="flex flex-col gap-2">
+                            <label className="text-sm text-gray-400">{col.name} <span className={`text-xs ${getTypeColor(col.type)}`}>({col.type})</span></label>
                             <Input
                               placeholder={col.type}
                               value={newRowData[col.name] || ''}
                               onChange={(e) => setNewRowData({ ...newRowData, [col.name]: e.target.value })}
-                              className="h-8 w-40 text-sm bg-[#0d0d0d] border-[#2a2a2a] text-white"
+                              className="h-10 w-44 text-sm bg-[#0d0d0d] border-[#2a2a2a] text-white rounded-xl"
                             />
                           </div>
                         ))}
-                        <div className="flex items-end gap-2">
-                          <Button size="sm" onClick={addRow} className="bg-[#3ecf8e] hover:bg-[#36b77d] text-black h-8">
-                            Save
-                          </Button>
-                          <Button size="sm" variant="ghost" onClick={() => { setShowInsertRow(false); setNewRowData({}) }} className="text-gray-400 h-8">
-                            Cancel
-                          </Button>
-                        </div>
+                        <Button onClick={addRow} className="h-10 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-black font-semibold px-6 rounded-xl">
+                          Сохранить
+                        </Button>
+                        <Button variant="ghost" onClick={() => { setShowInsertRow(false); setNewRowData({}) }} className="h-10 text-gray-400 rounded-xl">
+                          Отмена
+                        </Button>
                       </div>
                     </div>
                   )}
@@ -929,24 +1015,66 @@ export default function Index() {
                   <div className="flex-1 overflow-auto">
                     <table className="w-full border-collapse text-sm">
                       <thead className="sticky top-0 z-10">
-                        <tr className="bg-[#1f1f1f] border-b border-[#2a2a2a]">
-                          <th className="w-12 px-4 py-2 text-left">
-                            <input type="checkbox" className="rounded border-[#3a3a3a] bg-transparent" />
+                        <tr className="bg-[#161616]">
+                          <th className="w-14 px-4 py-4 text-left border-b border-r border-[#2a2a2a]">
+                            <input type="checkbox" className="rounded border-[#3a3a3a] bg-transparent accent-emerald-500" />
                           </th>
-                          <th className="w-12 px-2 py-2 text-center text-gray-500 font-normal"></th>
+                          <th className="w-14 px-4 py-4 text-center text-gray-500 font-medium border-b border-r border-[#2a2a2a]">#</th>
                           {selectedTable.columns.map((col) => (
-                            <th key={col.name} className="px-4 py-2 text-left border-l border-[#2a2a2a] min-w-[150px]">
-                              <div className="flex items-center gap-2">
-                                <input type="checkbox" className="rounded border-[#3a3a3a] bg-transparent" />
-                                <span className="text-white font-medium">{col.name}</span>
-                                <span className={`text-xs ${getTypeColor(col.type)}`}>{col.type}</span>
-                                {col.primary && (
-                                  <Badge className="bg-yellow-500/20 text-yellow-400 border-0 text-[10px] px-1.5 py-0">PK</Badge>
+                            <th key={col.name} className="px-4 py-4 text-left border-b border-r border-[#2a2a2a] min-w-[180px] group">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  {editingColumn === col.name ? (
+                                    <div className="flex items-center gap-2">
+                                      <Input
+                                        value={editColumnName}
+                                        onChange={(e) => setEditColumnName(e.target.value)}
+                                        className="h-8 w-28 text-sm bg-[#0d0d0d] border-emerald-500 text-white"
+                                      />
+                                      <select
+                                        value={editColumnType}
+                                        onChange={(e) => setEditColumnType(e.target.value)}
+                                        className="h-8 px-2 bg-[#0d0d0d] border border-[#2a2a2a] text-white text-xs rounded"
+                                      >
+                                        <option value="text">text</option>
+                                        <option value="integer">integer</option>
+                                        <option value="float8">float8</option>
+                                        <option value="boolean">boolean</option>
+                                        <option value="timestamp">timestamp</option>
+                                        <option value="uuid">uuid</option>
+                                        <option value="json">json</option>
+                                      </select>
+                                      <button onClick={() => updateColumn(col.name)} className="p-1 hover:bg-emerald-500/20 rounded">
+                                        <Check className="w-4 h-4 text-emerald-400" />
+                                      </button>
+                                      <button onClick={() => setEditingColumn(null)} className="p-1 hover:bg-red-500/20 rounded">
+                                        <X className="w-4 h-4 text-red-400" />
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <>
+                                      <span className="text-white font-semibold">{col.name}</span>
+                                      <span className={`text-xs font-normal ${getTypeColor(col.type)}`}>{col.type}</span>
+                                      {col.primary && (
+                                        <Badge className="bg-amber-500/20 text-amber-400 border-0 text-[10px] px-1.5 py-0 font-medium">PK</Badge>
+                                      )}
+                                    </>
+                                  )}
+                                </div>
+                                {!col.primary && editingColumn !== col.name && (
+                                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => startEditColumn(col)} className="p-1 hover:bg-[#2a2a2a] rounded">
+                                      <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                                    </button>
+                                    <button onClick={() => deleteColumn(col.name)} className="p-1 hover:bg-red-500/20 rounded">
+                                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             </th>
                           ))}
-                          <th className="w-10 px-2 py-2 border-l border-[#2a2a2a]"></th>
+                          <th className="w-20 px-4 py-4 border-b border-[#2a2a2a]"></th>
                         </tr>
                       </thead>
                       <tbody>
@@ -954,11 +1082,11 @@ export default function Index() {
                           const rowData = row as Record<string, unknown>
                           const rowId = rowData.id as string
                           return (
-                            <tr key={rowId || index} className="border-b border-[#2a2a2a] hover:bg-[#1f1f1f]/50 group">
-                              <td className="px-4 py-2">
+                            <tr key={rowId || index} className="border-b border-[#2a2a2a] hover:bg-[#161616]/50 group transition-colors">
+                              <td className="px-4 py-3 border-r border-[#2a2a2a]">
                                 <input 
                                   type="checkbox" 
-                                  className="rounded border-[#3a3a3a] bg-transparent"
+                                  className="rounded border-[#3a3a3a] bg-transparent accent-emerald-500"
                                   checked={selectedRows.has(rowId)}
                                   onChange={(e) => {
                                     const newSelected = new Set(selectedRows)
@@ -971,43 +1099,43 @@ export default function Index() {
                                   }}
                                 />
                               </td>
-                              <td className="px-2 py-2 text-center text-gray-500 text-xs">{index + 1}</td>
+                              <td className="px-4 py-3 text-center text-gray-500 text-xs font-mono border-r border-[#2a2a2a]">{index + 1}</td>
                               {selectedTable.columns.map((col) => (
-                                <td key={col.name} className="px-4 py-2 border-l border-[#2a2a2a]">
+                                <td key={col.name} className="px-4 py-3 border-r border-[#2a2a2a]">
                                   {editingRow === rowId ? (
                                     col.primary ? (
-                                      <span className="text-gray-400">{formatCellValue(rowData[col.name])}</span>
+                                      <span className="text-gray-500 font-mono">{formatCellValue(rowData[col.name])}</span>
                                     ) : (
                                       <Input
                                         value={String(editRowData[col.name] ?? '')}
                                         onChange={(e) => setEditRowData({ ...editRowData, [col.name]: e.target.value })}
-                                        className="h-7 text-sm bg-[#0d0d0d] border-[#3ecf8e] text-white"
+                                        className="h-8 text-sm bg-[#0d0d0d] border-emerald-500 text-white"
                                       />
                                     )
                                   ) : (
-                                    <span className={rowData[col.name] === null || rowData[col.name] === undefined ? 'text-gray-600 italic' : 'text-gray-300'}>
+                                    <span className={`font-mono text-sm ${rowData[col.name] === null || rowData[col.name] === undefined ? 'text-gray-600 italic' : 'text-gray-300'}`}>
                                       {formatCellValue(rowData[col.name])}
                                     </span>
                                   )}
                                 </td>
                               ))}
-                              <td className="px-2 py-2 border-l border-[#2a2a2a]">
+                              <td className="px-4 py-3">
                                 {editingRow === rowId ? (
                                   <div className="flex items-center gap-1">
-                                    <button onClick={() => updateRow(rowId)} className="p-1 hover:bg-[#3ecf8e]/20 rounded">
-                                      <Check className="w-4 h-4 text-[#3ecf8e]" />
+                                    <button onClick={() => updateRow(rowId)} className="p-1.5 hover:bg-emerald-500/20 rounded-lg">
+                                      <Check className="w-4 h-4 text-emerald-400" />
                                     </button>
-                                    <button onClick={() => { setEditingRow(null); setEditRowData({}) }} className="p-1 hover:bg-red-500/20 rounded">
+                                    <button onClick={() => { setEditingRow(null); setEditRowData({}) }} className="p-1.5 hover:bg-red-500/20 rounded-lg">
                                       <X className="w-4 h-4 text-red-400" />
                                     </button>
                                   </div>
                                 ) : (
                                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <button onClick={() => { setEditingRow(rowId); setEditRowData(rowData) }} className="p-1 hover:bg-[#2a2a2a] rounded">
-                                      <Pencil className="w-3.5 h-3.5 text-gray-400" />
+                                    <button onClick={() => { setEditingRow(rowId); setEditRowData(rowData) }} className="p-1.5 hover:bg-[#2a2a2a] rounded-lg">
+                                      <Pencil className="w-4 h-4 text-gray-400" />
                                     </button>
-                                    <button onClick={() => deleteRow(rowId)} className="p-1 hover:bg-red-500/20 rounded">
-                                      <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                                    <button onClick={() => deleteRow(rowId)} className="p-1.5 hover:bg-red-500/20 rounded-lg">
+                                      <Trash2 className="w-4 h-4 text-red-400" />
                                     </button>
                                   </div>
                                 )}
@@ -1017,8 +1145,12 @@ export default function Index() {
                         })}
                         {selectedTable.rows.length === 0 && (
                           <tr>
-                            <td colSpan={selectedTable.columns.length + 3} className="px-4 py-12 text-center text-gray-500">
-                              No rows yet. Click Insert to add data.
+                            <td colSpan={selectedTable.columns.length + 3} className="px-6 py-16 text-center">
+                              <div className="w-16 h-16 rounded-2xl bg-[#2a2a2a] flex items-center justify-center mx-auto mb-4">
+                                <Rows className="w-8 h-8 text-gray-500" />
+                              </div>
+                              <p className="text-gray-400 text-lg">Нет записей</p>
+                              <p className="text-gray-600 text-sm mt-1">Нажмите "Добавить запись" чтобы добавить данные</p>
                             </td>
                           </tr>
                         )}
@@ -1026,23 +1158,28 @@ export default function Index() {
                     </table>
                   </div>
 
-                  <div className="flex items-center justify-between px-4 py-2 border-t border-[#2a2a2a] bg-[#1f1f1f] text-sm">
+                  <div className="flex items-center justify-between px-6 py-3 border-t border-[#2a2a2a] bg-[#161616] text-sm">
                     <div className="flex items-center gap-4">
-                      <span className="text-gray-400">Page</span>
-                      <Input className="w-16 h-7 text-center bg-[#0d0d0d] border-[#2a2a2a] text-white text-sm" defaultValue="1" />
-                      <span className="text-gray-400">of 1</span>
+                      <span className="text-gray-500">Страница</span>
+                      <div className="flex items-center gap-2">
+                        <Input className="w-16 h-8 text-center bg-[#0d0d0d] border-[#2a2a2a] text-white text-sm rounded-lg" defaultValue="1" />
+                        <span className="text-gray-500">из 1</span>
+                      </div>
                     </div>
                     <div className="flex items-center gap-4">
-                      <span className="text-gray-500">{selectedTable.rows.length} rows</span>
-                      <span className="text-gray-400">{selectedTable.rows.length} records</span>
+                      <Badge className="bg-[#2a2a2a] text-gray-300 border-0">{selectedTable.columns.length} колонок</Badge>
+                      <Badge className="bg-emerald-500/20 text-emerald-400 border-0">{selectedTable.rows.length} записей</Badge>
                     </div>
                   </div>
                 </>
               ) : (
-                <div className="flex-1 flex items-center justify-center text-gray-500">
+                <div className="flex-1 flex items-center justify-center">
                   <div className="text-center">
-                    <TableIcon className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                    <p>Select a table to view data</p>
+                    <div className="w-20 h-20 rounded-2xl bg-[#2a2a2a] flex items-center justify-center mx-auto mb-4">
+                      <TableIcon className="w-10 h-10 text-gray-500" />
+                    </div>
+                    <p className="text-gray-300 text-lg font-medium">Выберите таблицу</p>
+                    <p className="text-gray-500 text-sm mt-1">Или создайте новую в боковой панели</p>
                   </div>
                 </div>
               )}
@@ -1051,30 +1188,36 @@ export default function Index() {
         )}
 
         {activeTab === 'auth' && (
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-8 overflow-auto bg-[#0d0d0d]">
             <div className="max-w-4xl">
-              <h2 className="text-2xl font-bold text-white mb-6">Authentication</h2>
-              <Card className="bg-[#1f1f1f] border-[#2a2a2a]">
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Users className="w-7 h-7 text-emerald-400" />
+                Аутентификация
+              </h2>
+              <Card className="bg-[#161616] border-[#2a2a2a]">
                 <CardHeader>
-                  <CardTitle className="text-white">Users</CardTitle>
+                  <CardTitle className="text-white">Пользователи</CardTitle>
                 </CardHeader>
                 <CardContent>
                   {authUsers.length > 0 ? (
-                    <div className="space-y-2">
+                    <div className="space-y-3">
                       {authUsers.map((user) => (
-                        <div key={user.id} className="flex items-center justify-between p-3 bg-[#0d0d0d] rounded border border-[#2a2a2a]">
+                        <div key={user.id} className="flex items-center justify-between p-4 bg-[#0d0d0d] rounded-xl border border-[#2a2a2a]">
                           <div>
-                            <p className="text-white">{user.email}</p>
-                            <p className="text-xs text-gray-500">Created: {new Date(user.created_at).toLocaleDateString()}</p>
+                            <p className="text-white font-medium">{user.email}</p>
+                            <p className="text-xs text-gray-500 mt-1">Создан: {new Date(user.created_at).toLocaleDateString('ru-RU')}</p>
                           </div>
-                          <Button variant="ghost" size="icon" onClick={() => deleteAuthUser(user.id)}>
+                          <Button variant="ghost" size="icon" onClick={() => deleteAuthUser(user.id)} className="hover:bg-red-500/20">
                             <Trash2 className="w-4 h-4 text-red-400" />
                           </Button>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-center py-8">No users yet</p>
+                    <div className="text-center py-12">
+                      <Users className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-500">Пока нет пользователей</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
@@ -1083,52 +1226,57 @@ export default function Index() {
         )}
 
         {activeTab === 'storage' && (
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-8 overflow-auto bg-[#0d0d0d]">
             <div className="max-w-4xl">
-              <h2 className="text-2xl font-bold text-white mb-6">Storage</h2>
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <FolderOpen className="w-7 h-7 text-emerald-400" />
+                Хранилище
+              </h2>
               
               {!selectedBucket ? (
                 <>
-                  <Card className="mb-6 bg-[#1f1f1f] border-[#2a2a2a]">
+                  <Card className="mb-6 bg-[#161616] border-[#2a2a2a]">
                     <CardContent className="pt-6">
-                      <div className="flex gap-3 items-center">
+                      <div className="flex gap-4 items-center">
                         <Input
-                          placeholder="Bucket name"
+                          placeholder="Название bucket"
                           value={newBucketName}
                           onChange={(e) => setNewBucketName(e.target.value)}
-                          className="bg-[#0d0d0d] border-[#2a2a2a] text-white"
+                          className="bg-[#0d0d0d] border-[#2a2a2a] text-white rounded-xl"
                         />
                         <label className="flex items-center gap-2 text-gray-400 text-sm whitespace-nowrap">
                           <input
                             type="checkbox"
                             checked={newBucketPublic}
                             onChange={(e) => setNewBucketPublic(e.target.checked)}
-                            className="rounded border-[#3a3a3a]"
+                            className="rounded border-[#3a3a3a] accent-emerald-500"
                           />
-                          Public
+                          Публичный
                         </label>
-                        <Button onClick={createBucket} disabled={loading} className="bg-[#3ecf8e] hover:bg-[#36b77d] text-black">
+                        <Button onClick={createBucket} disabled={loading} className="bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-black rounded-xl">
                           <Plus className="w-4 h-4 mr-2" />
-                          Create
+                          Создать
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {buckets.map((bucket) => (
                       <Card 
                         key={bucket.id} 
-                        className="bg-[#1f1f1f] border-[#2a2a2a] hover:border-[#3a3a3a] cursor-pointer transition-colors"
+                        className="bg-[#161616] border-[#2a2a2a] hover:border-emerald-500/50 cursor-pointer transition-all"
                         onClick={() => loadBucketFiles(bucket)}
                       >
                         <CardContent className="p-4 flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <FolderOpen className="w-5 h-5 text-gray-400" />
-                            <span className="text-white">{bucket.name}</span>
-                            {bucket.public && <Badge className="bg-blue-500/20 text-blue-400 border-0">Public</Badge>}
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 flex items-center justify-center">
+                              <FolderOpen className="w-5 h-5 text-emerald-400" />
+                            </div>
+                            <span className="text-white font-medium">{bucket.name}</span>
+                            {bucket.public && <Badge className="bg-blue-500/20 text-blue-400 border-0">Публичный</Badge>}
                           </div>
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-3">
                             <Button
                               variant="ghost"
                               size="icon"
@@ -1136,6 +1284,7 @@ export default function Index() {
                                 e.stopPropagation()
                                 deleteBucket(bucket.name)
                               }}
+                              className="hover:bg-red-500/20"
                             >
                               <Trash2 className="w-4 h-4 text-red-400" />
                             </Button>
@@ -1147,29 +1296,29 @@ export default function Index() {
                   </div>
 
                   {buckets.length === 0 && (
-                    <div className="text-center py-12 text-gray-500">
-                      <FolderOpen className="w-12 h-12 mx-auto mb-4 opacity-30" />
-                      <p>No buckets yet</p>
+                    <div className="text-center py-16">
+                      <FolderOpen className="w-12 h-12 text-gray-500 mx-auto mb-3" />
+                      <p className="text-gray-500">Нет buckets</p>
                     </div>
                   )}
                 </>
               ) : (
                 <div>
                   <Button variant="ghost" onClick={() => setSelectedBucket(null)} className="mb-4 text-gray-400">
-                    ← Back to buckets
+                    ← Назад к buckets
                   </Button>
                   <h3 className="text-xl font-bold text-white mb-4">{selectedBucket.name}</h3>
                   {bucketFiles.length > 0 ? (
                     <div className="space-y-2">
                       {bucketFiles.map((file) => (
-                        <div key={file.id} className="p-3 bg-[#1f1f1f] border border-[#2a2a2a] rounded flex items-center justify-between">
+                        <div key={file.id} className="p-4 bg-[#161616] border border-[#2a2a2a] rounded-xl flex items-center justify-between">
                           <span className="text-white">{file.name}</span>
                           <span className="text-gray-500 text-sm">{(file.size / 1024).toFixed(1)} KB</span>
                         </div>
                       ))}
                     </div>
                   ) : (
-                    <p className="text-gray-500 text-center py-8">No files in this bucket</p>
+                    <p className="text-gray-500 text-center py-12">Нет файлов в этом bucket</p>
                   )}
                 </div>
               )}
@@ -1178,52 +1327,85 @@ export default function Index() {
         )}
 
         {activeTab === 'api' && (
-          <main className="flex-1 p-6 overflow-auto">
+          <main className="flex-1 p-8 overflow-auto bg-[#0d0d0d]">
             <div className="max-w-2xl">
-              <h2 className="text-2xl font-bold text-white mb-6">API Keys</h2>
+              <h2 className="text-2xl font-bold text-white mb-6 flex items-center gap-3">
+                <Key className="w-7 h-7 text-emerald-400" />
+                API Ключи
+              </h2>
+              <p className="text-gray-400 mb-8">
+                Используйте эти ключи для подключения к вашей базе данных из любого приложения или сервиса.
+              </p>
               
               {apiKeys ? (
-                <div className="space-y-4">
-                  <Card className="bg-[#1f1f1f] border-[#2a2a2a]">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-gray-400">Anon Key (Public)</CardTitle>
+                <div className="space-y-6">
+                  <Card className="bg-[#161616] border-[#2a2a2a]">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-emerald-500/20 flex items-center justify-center">
+                          <Globe className="w-5 h-5 text-emerald-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-white text-lg">Anon Key (Публичный)</CardTitle>
+                          <p className="text-sm text-gray-500">Для клиентских приложений</p>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 p-3 bg-[#0d0d0d] rounded text-sm text-gray-300 font-mono overflow-hidden">
-                          {showApiKey['anon'] ? apiKeys.anon : '••••••••••••••••••••••••••••••••'}
+                      <div className="flex items-center gap-3">
+                        <code className="flex-1 p-4 bg-[#0d0d0d] rounded-xl text-sm text-gray-300 font-mono overflow-hidden border border-[#2a2a2a]">
+                          {showApiKey['anon'] ? apiKeys.anon : '••••••••••••••••••••••••••••••••••••••••'}
                         </code>
-                        <Button variant="ghost" size="icon" onClick={() => setShowApiKey({...showApiKey, anon: !showApiKey['anon']})}>
-                          {showApiKey['anon'] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        <Button variant="ghost" size="icon" onClick={() => setShowApiKey({...showApiKey, anon: !showApiKey['anon']})} className="hover:bg-[#2a2a2a]">
+                          {showApiKey['anon'] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(apiKeys.anon, 'anon')}>
-                          <Copy className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(apiKeys.anon, 'anon')} className="hover:bg-[#2a2a2a]">
+                          {copied === 'anon' ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5" />}
                         </Button>
                       </div>
                     </CardContent>
                   </Card>
 
-                  <Card className="bg-[#1f1f1f] border-[#2a2a2a]">
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm text-gray-400">Service Key (Secret)</CardTitle>
+                  <Card className="bg-[#161616] border-[#2a2a2a]">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-red-500/20 flex items-center justify-center">
+                          <Shield className="w-5 h-5 text-red-400" />
+                        </div>
+                        <div>
+                          <CardTitle className="text-white text-lg">Service Key (Секретный)</CardTitle>
+                          <p className="text-sm text-gray-500">Только для серверных приложений</p>
+                        </div>
+                      </div>
                     </CardHeader>
                     <CardContent>
-                      <div className="flex items-center gap-2">
-                        <code className="flex-1 p-3 bg-[#0d0d0d] rounded text-sm text-gray-300 font-mono overflow-hidden">
-                          {showApiKey['service'] ? apiKeys.service : '••••••••••••••••••••••••••••••••'}
+                      <div className="flex items-center gap-3">
+                        <code className="flex-1 p-4 bg-[#0d0d0d] rounded-xl text-sm text-gray-300 font-mono overflow-hidden border border-[#2a2a2a]">
+                          {showApiKey['service'] ? apiKeys.service : '••••••••••••••••••••••••••••••••••••••••'}
                         </code>
-                        <Button variant="ghost" size="icon" onClick={() => setShowApiKey({...showApiKey, service: !showApiKey['service']})}>
-                          {showApiKey['service'] ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        <Button variant="ghost" size="icon" onClick={() => setShowApiKey({...showApiKey, service: !showApiKey['service']})} className="hover:bg-[#2a2a2a]">
+                          {showApiKey['service'] ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                         </Button>
-                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(apiKeys.service, 'service')}>
-                          <Copy className="w-4 h-4" />
+                        <Button variant="ghost" size="icon" onClick={() => copyToClipboard(apiKeys.service, 'service')} className="hover:bg-[#2a2a2a]">
+                          {copied === 'service' ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5" />}
                         </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <Card className="bg-gradient-to-r from-emerald-500/10 to-cyan-500/10 border-emerald-500/30">
+                    <CardContent className="py-4">
+                      <div className="flex items-center gap-3">
+                        <Zap className="w-5 h-5 text-emerald-400" />
+                        <p className="text-gray-300 text-sm">
+                          Подключайтесь к базе данных с любого устройства или сервиса используя REST API или SDK
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
                 </div>
               ) : (
-                <p className="text-gray-500">No API keys available</p>
+                <p className="text-gray-500">API ключи не найдены</p>
               )}
             </div>
           </main>
