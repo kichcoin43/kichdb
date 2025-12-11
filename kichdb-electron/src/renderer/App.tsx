@@ -1,7 +1,7 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom'
 import { useEffect } from 'react'
-import Index from './pages/Index'
-import DataBrowser from './pages/DataBrowser'
+import Index from './lib/pages/Index'
+import DataBrowser from './lib/pages/DataBrowser'
 
 export default function App() {
   useEffect(() => {

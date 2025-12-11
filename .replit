@@ -38,13 +38,13 @@ outputType = "webview"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "node server/index.js & cd kichdb-electron && npm run dev:renderer"
+args = "cd /home/runner/workspace && node server/index.js & cd kichdb-electron && npm run dev:renderer"
 waitForPort = 5000
 
 [[ports]]
 localPort = 3030
-externalPort = 3000
+externalPort = 80
 
 [[ports]]
 localPort = 5000
-externalPort = 5000
+externalPort = 80
